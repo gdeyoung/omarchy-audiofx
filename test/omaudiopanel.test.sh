@@ -290,4 +290,23 @@ expect "disable remembers the Bluetooth profile" \
 "$helper" enable bluez_output.AA_BB.1
 expect "enable restores the Bluetooth profile" "set-card-profile bluez_card.AA_BB a2dp-sink" "$(cat "$FIX/writes.log")"
 
+setup
+# A label with a newline or tab must not split or widen its state line.
+cat >"$FIX/sinks.json" <<'JSON'
+[{"index":7,"name":"bluez_output.AA_BB.1","properties":{"device.name":"bluez_card.AA_BB","device.api":"bluez5"}}]
+JSON
+cat >"$FIX/cards.json" <<'JSON'
+[{"name":"bluez_card.AA_BB","active_profile":"a2dp-sink","profiles":{
+  "off":{"sinks":0,"sources":0,"priority":0,"available":true},
+  "a2dp-sink":{"sinks":1,"sources":0,"priority":10,"available":true}}}]
+JSON
+"$helper" disable bluez_output.AA_BB.1 sink $'Pebble\nV3\tX'
+expect "disable flattens newlines and tabs in the label" \
+  $'bluez_output.AA_BB.1\tsink\tPebble V3 X\tbluez_card.AA_BB\tprofile:a2dp-sink' "$("$helper" list-disabled)"
+expect "disable with a multi-line label writes one state line" "1" "$("$helper" list-disabled | wc -l)"
+
+setup
+"$helper" pin Brave speakers $'Spea\nkers\tX' >/dev/null
+expect "pin flattens newlines and tabs in the label" $'Brave\tspeakers\tSpea kers X' "$("$helper" list-pins)"
+
 (( failures == 0 )) && echo "all passed" || { echo "$failures failed"; exit 1; }

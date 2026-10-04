@@ -22,19 +22,6 @@ function listSnapshot(list) {
   return list && list.slice ? list.slice() : []
 }
 
-function outputVolumeName(volume, muted) {
-  if (muted) return "Muted"
-  var p = Math.round(volume * 100)
-  if (p === 0) return "Silenced"
-  if (p >= 100) return "Concert hall"
-  if (p >= 85) return "Party mode"
-  if (p >= 70) return "Cranked up"
-  if (p >= 50) return "Steady groove"
-  if (p >= 30) return "Easy listening"
-  if (p >= 15) return "Murmur"
-  return "Whisper"
-}
-
 function parseSinkAvailability(raw) {
   var next = {}
   var lines = String(raw || "").split("\n")
@@ -247,8 +234,8 @@ function parseDisabledDevices(raw) {
   var lines = String(raw || "").split("\n")
   for (var i = 0; i < lines.length; i++) {
     var parts = lines[i].split("\t")
-    if (!parts[0]) continue
-    list.push({ name: parts[0], kind: parts[1] || "sink", label: parts[2] || parts[0] })
+    if (!parts[0] || (parts[1] !== "sink" && parts[1] !== "source")) continue
+    list.push({ name: parts[0], kind: parts[1], label: parts[2] || parts[0] })
   }
   return list
 }
@@ -454,7 +441,6 @@ if (typeof module !== "undefined") {
     isPlaybackStream: isPlaybackStream,
     isAudioSource: isAudioSource,
     listSnapshot: listSnapshot,
-    outputVolumeName: outputVolumeName,
     parseSinkAvailability: parseSinkAvailability,
     friendlyDeviceLabel: friendlyDeviceLabel,
     nodeProps: nodeProps,

@@ -179,3 +179,8 @@ test("manifestVersion reads the version from manifest JSON, empty when unreadabl
   assert.equal(M.manifestVersion("not json"), "")
   assert.equal(M.manifestVersion(undefined), "")
 })
+
+test("parseDisabledDevices skips entries whose kind is not sink or source", () => {
+  const d = M.parseDisabledDevices("a\tsink\tA\nb\tbogus\tB\nc\t\tC\nd\tsource\tD\n")
+  assert.deepEqual(d.map(x => x.name + ":" + x.kind), ["a:sink", "d:source"])
+})
