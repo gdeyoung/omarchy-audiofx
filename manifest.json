@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "id": "videinfra.omaudiopanel",
-  "name": "omaudiopanel",
-  "version": "0.4.0",
-  "author": "thevideinfra",
+  "id": "gdeyoung.audiofx",
+  "name": "Audio FX",
+  "version": "0.2.0",
+  "author": "gdeyoung",
   "license": "MIT",
-  "description": "Omarchy's audio panel plus device disabling, per-app output routing and pinning, tab titles and an adjustable volume step",
+  "description": "Omarchy's audio panel plus device disabling, per-app routing and pins, and system-wide 3D / bass / night / movie audio effects",
   "kinds": [
     "bar-widget"
   ],
@@ -13,8 +13,8 @@
     "barWidget": "Panel.qml"
   },
   "barWidget": {
-    "displayName": "omaudiopanel",
-    "description": "Volume, outputs and inputs you can disable, a per-app mixer with output routing and pins, and an adjustable volume step",
+    "displayName": "Audio FX",
+    "description": "Volume, outputs and inputs you can disable, a per-app mixer with routing and pins, and 3D / bass / night / movie effects",
     "category": "Audio",
     "allowMultiple": false,
     "defaultSection": "right",
@@ -28,7 +28,8 @@
       "fontSize": "normal",
       "showSectionMutes": true,
       "accent": "theme",
-      "showHeaderInfo": true
+      "showHeaderInfo": true,
+      "showFxSection": true
     },
     "schema": [
       {
@@ -116,6 +117,12 @@
         "key": "showStepFooter",
         "type": "boolean",
         "label": "Show the volume step footer",
+        "defaultValue": true
+      },
+      {
+        "key": "showFxSection",
+        "type": "boolean",
+        "label": "Show the effects section",
         "defaultValue": true
       }
     ]

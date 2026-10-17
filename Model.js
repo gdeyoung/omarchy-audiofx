@@ -228,7 +228,7 @@ function streamRepresentsPlayer(node, player, players, streams) {
   return streamRepresentsMprisPlayer(streamLabel(node, players, streams), playerLabel)
 }
 
-// Lines of "name<TAB>kind<TAB>label" from `omaudiopanel list-disabled`.
+// Lines of "name<TAB>kind<TAB>label" from `audiofx list-disabled`.
 function parseDisabledDevices(raw) {
   var list = []
   var lines = String(raw || "").split("\n")
@@ -241,7 +241,7 @@ function parseDisabledDevices(raw) {
 }
 
 // Lines of "stream-id<TAB>current-sink<TAB>routed-sink<TAB>app<TAB>paused"
-// from `omaudiopanel list-streams`; routed-sink is empty when following the
+// from `audiofx list-streams`; routed-sink is empty when following the
 // default, paused is 1 for a corked stream.
 function parseStreams(raw) {
   var streams = {}
@@ -259,7 +259,7 @@ function parseStreams(raw) {
   return streams
 }
 
-// Lines of "app<TAB>sink-name<TAB>sink-label" from `omaudiopanel list-pins`.
+// Lines of "app<TAB>sink-name<TAB>sink-label" from `audiofx list-pins`.
 function parsePins(raw) {
   var pins = {}
   var lines = String(raw || "").split("\n")

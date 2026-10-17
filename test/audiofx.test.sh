@@ -1,10 +1,10 @@
 #!/bin/bash
-# Run with: bash test/omaudiopanel.test.sh
-# Exercises pin handling in bin/omaudiopanel against stubbed pactl/pw-metadata.
+# Run with: bash test/audiofx.test.sh
+# Exercises pin handling in bin/audiofx against stubbed pactl/pw-metadata.
 
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
-helper=$here/../bin/omaudiopanel
+helper=$here/../bin/audiofx
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
@@ -59,7 +59,7 @@ expect() {
 }
 
 target_of() { sed -n "s/^update: id:$1 key:'target.object' value:'\(.*\)' type:.*/\1/p" "$FIX/metadata.txt"; }
-marker_of() { sed -n "s/^update: id:$1 key:'omaudiopanel.pin' value:'\(.*\)' type:.*/\1/p" "$FIX/metadata.txt"; }
+marker_of() { sed -n "s/^update: id:$1 key:'audiofx.pin' value:'\(.*\)' type:.*/\1/p" "$FIX/metadata.txt"; }
 
 setup
 "$helper" pin Brave speakers "Speakers"
@@ -169,13 +169,13 @@ setup
 # Only the exact key counts as a marker.
 "$helper" pin Brave speakers "Speakers" >/dev/null
 "$helper" route 61 speakers
-echo "update: id:61 key:'omaudiopanelXpin' value:'Brave|speakers' type:'(null)'" >>"$FIX/metadata.txt"
+echo "update: id:61 key:'audiofxXpin' value:'Brave|speakers' type:'(null)'" >>"$FIX/metadata.txt"
 "$helper" unpin Brave
 expect "unpin ignores lookalike keys" "speakers" "$(target_of 61)"
 
 setup
 # Route-changing commands wait for each other through one lock.
-flock "$XDG_RUNTIME_DIR/omaudiopanel.lock" sh -c ': >"$1"; sleep 1' _ "$FIX/locked" &
+flock "$XDG_RUNTIME_DIR/audiofx.lock" sh -c ': >"$1"; sleep 1' _ "$FIX/locked" &
 while [[ ! -e $FIX/locked ]]; do sleep 0.02; done
 rm -f "$FIX/locked"
 start=$(date +%s%N)
@@ -207,9 +207,9 @@ expect "pin writes the on-screen stream once" "2" "$(grep -c '^60 ' "$FIX/writes
 
 setup
 # Old sink-only markers look up app names with a single pactl call.
-mkdir -p "$XDG_STATE_HOME/omaudiopanel"
-printf 'Brave\tspeakers\tSpeakers\n' >"$XDG_STATE_HOME/omaudiopanel/pins"
-printf "update: id:60 key:'target.object' value:'speakers' type:'(null)'\nupdate: id:60 key:'omaudiopanel.pin' value:'speakers' type:'(null)'\nupdate: id:61 key:'target.object' value:'speakers' type:'(null)'\nupdate: id:61 key:'omaudiopanel.pin' value:'speakers' type:'(null)'\n" >"$FIX/metadata.txt"
+mkdir -p "$XDG_STATE_HOME/audiofx"
+printf 'Brave\tspeakers\tSpeakers\n' >"$XDG_STATE_HOME/audiofx/pins"
+printf "update: id:60 key:'target.object' value:'speakers' type:'(null)'\nupdate: id:60 key:'audiofx.pin' value:'speakers' type:'(null)'\nupdate: id:61 key:'target.object' value:'speakers' type:'(null)'\nupdate: id:61 key:'audiofx.pin' value:'speakers' type:'(null)'\n" >"$FIX/metadata.txt"
 "$helper" unpin Brave
 expect "old markers need one pactl call" "1" "$(wc -l <"$FIX/sink-input-calls" | tr -d ' ')"
 
@@ -225,9 +225,9 @@ expect "unpin works for an app name with an apostrophe" "" "$(target_of 80)$(mar
 
 setup
 # Markers from the previous version hold only the sink; unpin still resets them.
-mkdir -p "$XDG_STATE_HOME/omaudiopanel"
-printf 'Brave\tspeakers\tSpeakers\n' >"$XDG_STATE_HOME/omaudiopanel/pins"
-printf "update: id:60 key:'target.object' value:'speakers' type:'(null)'\nupdate: id:60 key:'omaudiopanel.pin' value:'speakers' type:'(null)'\nupdate: id:70 key:'target.object' value:'speakers' type:'(null)'\nupdate: id:70 key:'omaudiopanel.pin' value:'speakers' type:'(null)'\n" >"$FIX/metadata.txt"
+mkdir -p "$XDG_STATE_HOME/audiofx"
+printf 'Brave\tspeakers\tSpeakers\n' >"$XDG_STATE_HOME/audiofx/pins"
+printf "update: id:60 key:'target.object' value:'speakers' type:'(null)'\nupdate: id:60 key:'audiofx.pin' value:'speakers' type:'(null)'\nupdate: id:70 key:'target.object' value:'speakers' type:'(null)'\nupdate: id:70 key:'audiofx.pin' value:'speakers' type:'(null)'\n" >"$FIX/metadata.txt"
 "$helper" unpin Brave
 expect "unpin resets a marker from the previous version" "" "$(target_of 60)$(marker_of 60)"
 expect "an old marker on another app's stream stays" "speakers speakers" "$(target_of 70) $(marker_of 70)"
@@ -308,5 +308,39 @@ expect "disable with a multi-line label writes one state line" "1" "$("$helper" 
 setup
 "$helper" pin Brave speakers $'Spea\nkers\tX' >/dev/null
 expect "pin flattens newlines and tabs in the label" $'Brave\tspeakers\tSpea kers X' "$("$helper" list-pins)"
+
+# ---- fx-* subcommands delegate to the engine ----
+setup
+cat >"$work/bin/fake-engine" <<'EOF'
+#!/bin/bash
+echo "$*" >>"$FIX/engine-calls.log"
+if [[ $1 == status ]]; then
+  echo '{"active":true,"preset":{"spatial":60,"bass":0,"night":0},"target":"alsa_speakers","mode":"system","excluded":[]}'
+fi
+exit 0
+EOF
+chmod +x "$work/bin/fake-engine"
+export AUDIOFX_ENGINE=$work/bin/fake-engine
+: >"$FIX/engine-calls.log"
+
+expect "fx-status returns engine JSON" \
+  '{"active":true,"preset":{"spatial":60,"bass":0,"night":0},"target":"alsa_speakers","mode":"system","excluded":[]}' \
+  "$("$helper" fx-status)"
+expect "fx-status execs the engine with status" "status" "$(cat "$FIX/engine-calls.log")"
+
+"$helper" fx-apply '{"spatial":40,"bass":45,"night":35}' >/dev/null
+expect "fx-apply passes the preset through" \
+  $'status\napply {"spatial":40,"bass":45,"night":35}' "$(cat "$FIX/engine-calls.log")"
+
+"$helper" fx-rules apps '["Steam"]' >/dev/null
+expect "fx-rules passes mode and list" \
+  $'status\napply {"spatial":40,"bass":45,"night":35}\nrules apps ["Steam"]' "$(cat "$FIX/engine-calls.log")"
+
+# A missing engine: non-zero, a message on stderr, nothing on stdout.
+export AUDIOFX_ENGINE=$work/bin/not-there
+"$helper" fx-status >/dev/null 2>&1; rc=$?
+expect "fx-status without an engine fails" "1" "$rc"
+expect "fx-status without an engine is silent" "" "$("$helper" fx-status 2>/dev/null)"
+unset AUDIOFX_ENGINE
 
 (( failures == 0 )) && echo "all passed" || { echo "$failures failed"; exit 1; }

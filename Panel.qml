@@ -10,8 +10,8 @@ import "Model.js" as Model
 
 Panel {
   id: root
-  moduleName: "videinfra.omaudiopanel"
-  ipcTarget: "videinfra.omaudiopanel"
+  moduleName: "gdeyoung.audiofx"
+  ipcTarget: "gdeyoung.audiofx"
 
   readonly property var sink: Pipewire.defaultAudioSink
   readonly property var source: Pipewire.defaultAudioSource
@@ -50,6 +50,8 @@ Panel {
       // A tuning's output is a playback stream too, but it is the processing
       // itself rather than an application, so it does not belong in the list.
       if (String(n.name || "").indexOf("omarchy_speaker_tuning") === 0) continue
+      // Same for the audiofx chain's own playback stream.
+      if (String(n.name || "").indexOf("gdy_audiofx") === 0) continue
       list.push(n)
     }
     return list
@@ -126,7 +128,7 @@ Panel {
   readonly property real densityScale: Model.densityScale(density)
   readonly property string fontSize: String(setting("fontSize", "normal"))
   readonly property string accentChoice: String(setting("accent", "theme"))
-  readonly property string repoUrl: "https://github.com/thevideinfra/omaudiopanel"
+  readonly property string repoUrl: "https://github.com/gdeyoung/omarchy-audiofx"
   property string version: ""
 
   // The version shown in the header comes from this plugin's manifest, so it
@@ -158,6 +160,7 @@ Panel {
   readonly property bool showSectionMutes: Model.settingBool(setting("showSectionMutes", true), true)
   readonly property bool showStepFooter: Model.settingBool(setting("showStepFooter", true), true)
   readonly property bool showHeaderInfo: Model.settingBool(setting("showHeaderInfo", true), true)
+  readonly property bool showFxSection: Model.settingBool(setting("showFxSection", true), true)
   property bool settingsOpen: false
 
   // Style.space scaled by the chosen density.
@@ -166,20 +169,20 @@ Panel {
   }
 
   function setSetting(key, value) {
-    Quickshell.execDetached(["omarchy", "bar", "set", "videinfra.omaudiopanel", key, JSON.stringify(value), "--json"])
+    Quickshell.execDetached(["omarchy", "bar", "set", "gdeyoung.audiofx", key, JSON.stringify(value), "--json"])
   }
 
   // Carry sub-notch touchpad deltas between wheel events.
   property real wheelAccumulator: 0
 
   // Percent one volume step changes: the bar icon's scroll wheel, the panel
-  // sliders, h/l in the panel, and (through `omaudiopanel volume`) the volume keys. Set with
-  // `omarchy bar set videinfra.omaudiopanel scrollStep 2 --json` or from the panel footer.
+  // sliders, h/l in the panel, and (through `audiofx volume`) the volume keys. Set with
+  // `omarchy bar set gdeyoung.audiofx scrollStep 2 --json` or from the panel footer.
   readonly property var scrollStepChoices: [1, 2, 5, 10]
   readonly property int scrollStep: Math.max(1, Math.min(25, parseInt(setting("scrollStep", 5), 10) || 5))
 
   function setScrollStep(percent) {
-    Quickshell.execDetached(["omarchy", "bar", "set", "videinfra.omaudiopanel", "scrollStep", String(percent), "--json"])
+    Quickshell.execDetached(["omarchy", "bar", "set", "gdeyoung.audiofx", "scrollStep", String(percent), "--json"])
   }
 
   readonly property var volumeSink: {
@@ -521,10 +524,10 @@ Panel {
   }
 
   // ---- Device disabling and per-app routing ----
-  // Both go through bin/omaudiopanel: disabling switches the device's card
+  // Both go through bin/audiofx: disabling switches the device's card
   // profile; routing sets target.object in the default metadata.
   readonly property string helperPath: decodeURIComponent(
-    String(Qt.resolvedUrl("bin/omaudiopanel")).replace(/^file:\/\//, ""))
+    String(Qt.resolvedUrl("bin/audiofx")).replace(/^file:\/\//, ""))
 
   property var disabledDevices: []  // [{ name, kind, label }]
   property bool disabledExpanded: false
@@ -585,7 +588,193 @@ Panel {
   property var pins: ({})
   readonly property bool hasPins: Object.keys(pins).length > 0
 
-  Component.onCompleted: pinsProc.running = true
+  // ---- Audio FX: system-wide effects on a PipeWire filter-chain ----
+  // State mirrors ~/.local/share/audiofx/state.json, read through the
+  // engine's status command; the fx-* subcommands of bin/audiofx delegate
+  // to the engine, so this file never references its install path.
+  property var fxStatus: ({active: false, preset: {spatial: 0, bass: 0, night: 0}, target: "", mode: "system", excluded: []})
+  property bool fxApplying: false
+  property string fxLastDimension: ""
+  property bool fxRulesBusy: false
+
+  readonly property var fxPresets: [
+    {id: "off", label: "Off", spatial: 0, bass: 0, night: 0},
+    {id: "3d", label: "3D", spatial: 60, bass: 0, night: 0},
+    {id: "bass", label: "Bass", spatial: 0, bass: 60, night: 0},
+    {id: "night", label: "Night", spatial: 0, bass: 0, night: 50},
+    {id: "movie", label: "Movie", spatial: 40, bass: 45, night: 35}
+  ]
+
+  // While FX are active the physical target sink is fronted by the virtual
+  // sink (selecting it would defeat the effects), so sinkAvailable below
+  // filters both it and the virtual sink itself from the device list.
+  readonly property string fxTargetSink: fxStatus.active ? String(fxStatus.target || "") : ""
+
+  function fxRefresh() {
+    if (!fxStatusProc.running) fxStatusProc.running = true
+  }
+
+  function fxApplyPreset(p) {
+    if (fxApplying) return
+    fxApplying = true
+    fxApplyProc.presetJson = (p.spatial || p.bass || p.night)
+      ? JSON.stringify({spatial: p.spatial, bass: p.bass, night: p.night})
+      : "off"
+    fxApplyProc.running = true
+  }
+
+  function fxSetMode(mode) {
+    if (fxRulesBusy || !fxStatus.active) return
+    var excluded = fxStatus.excluded || []
+    // First entry into apps mode: prefill the game launcher so the
+    // bypass list is never empty.
+    if (mode === "apps" && excluded.length === 0) excluded = ["Steam"]
+    fxRulesBusy = true
+    var cur = fxStatus
+    cur.mode = mode
+    cur.excluded = excluded
+    fxStatus = cur
+    fxRulesProc.modeArg = mode
+    fxRulesProc.excludedJson = JSON.stringify(excluded)
+    fxRulesProc.running = true
+  }
+
+  // Per-app FX toggle on a stream row: opt the app out (apps mode) or back
+  // in. No-op when FX are off. The engine reconciles streams immediately.
+  function fxToggleApp(appLabel) {
+    if (fxRulesBusy || !fxStatus.active || !appLabel) return
+    var key = streamLabelKey(appLabel)
+    var wasBypassed = false
+    var excluded = []
+    var ex = fxStatus.excluded || []
+    for (var i = 0; i < ex.length; i++) {
+      var e = String(ex[i]).toLowerCase()
+      if (e === key || e.indexOf(key) !== -1 || key.indexOf(e) !== -1) { wasBypassed = true; continue }
+      excluded.push(ex[i])
+    }
+    if (!wasBypassed) excluded.push(appLabel)
+    fxRulesBusy = true
+    var cur = fxStatus
+    cur.mode = "apps"
+    cur.excluded = excluded
+    fxStatus = cur
+    fxRulesProc.modeArg = "apps"
+    fxRulesProc.excludedJson = JSON.stringify(excluded)
+    fxRulesProc.running = true
+  }
+
+  // Compose from current state: change one effect's amount, keep the rest.
+  function fxSetAmount(key, amount) {
+    var next = {
+      spatial: fxStatus.preset.spatial || 0,
+      bass: fxStatus.preset.bass || 0,
+      night: fxStatus.preset.night || 0
+    }
+    next[key] = amount
+    fxApplyPreset(next)
+  }
+
+  function fxParseStatus(raw) {
+    try {
+      return JSON.parse(String(raw))
+    } catch (e) {
+      return null
+    }
+  }
+
+  // Which strength dimension the slider drives. Explicit pill choice wins;
+  // otherwise the first non-zero effect of the active preset.
+  function fxDimension() {
+    if (fxLastDimension !== "") return fxLastDimension
+    if (!fxStatus.active) return ""
+    var p = fxStatus.preset
+    if ((p.spatial || 0) > 0) return "spatial"
+    if ((p.bass || 0) > 0) return "bass"
+    if ((p.night || 0) > 0) return "night"
+    return ""
+  }
+
+  function fxDimensionLabel() {
+    var d = fxDimension()
+    if (d === "spatial") return "3D STRENGTH"
+    if (d === "bass") return "BASS"
+    if (d === "night") return "NIGHT MODE"
+    return ""
+  }
+
+  function fxDimensionValue() {
+    var d = fxDimension()
+    if (d === "" || !fxStatus.preset) return 0
+    return fxStatus.preset[d] || 0
+  }
+
+  // The pill that matches the running amounts, "off" when inactive, or ""
+  // for a custom mix no pill matches (the slider moved past a preset).
+  function fxActivePresetId() {
+    if (!fxStatus.active) return "off"
+    var p = fxStatus.preset
+    for (var i = 0; i < fxPresets.length; i++) {
+      var q = fxPresets[i]
+      if (q.id !== "off"
+          && (q.spatial || 0) === (p.spatial || 0)
+          && (q.bass || 0) === (p.bass || 0)
+          && (q.night || 0) === (p.night || 0)) return q.id
+    }
+    return ""
+  }
+
+  Process {
+    id: fxStatusProc
+    command: [root.helperPath, "fx-status"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var s = root.fxParseStatus(text)
+        if (s) root.fxStatus = s
+        root.fxApplying = false
+      }
+    }
+    onExited: function(code, status) { if (code !== 0) root.noteHelperExit(code) }
+  }
+
+  Process {
+    id: fxApplyProc
+    property string presetJson: ""
+    command: [root.helperPath, "fx-apply", presetJson]
+    stdout: StdioCollector { waitForEnd: true }
+    onExited: function(code, status) {
+      if (code !== 0) root.noteHelperExit(code)
+      root.fxRefresh()
+      root.resolveVolumeSink()
+    }
+  }
+
+  Process {
+    id: fxRulesProc
+    property string modeArg: "system"
+    property string excludedJson: "[]"
+    command: [root.helperPath, "fx-rules", modeArg, excludedJson]
+    stdout: StdioCollector { waitForEnd: true }
+    onExited: function(code, status) {
+      root.fxRulesBusy = false
+      if (code !== 0) root.noteHelperExit(code)
+      root.fxRefresh()
+      root.resolveVolumeSink()
+    }
+  }
+
+  Timer {
+    interval: 5000
+    running: root.opened
+    repeat: true
+    triggeredOnStart: true
+    onTriggered: root.fxRefresh()
+  }
+
+  Component.onCompleted: {
+    pinsProc.running = true
+    fxRefresh()
+  }
 
   // New streams, and outputs coming or going, can each need a pin applied.
   // Both instances of the panel (one per monitor) may do this; it is idempotent.
@@ -739,6 +928,10 @@ Panel {
   function sinkAvailable(node) {
     if (!node || !node.name || !sinkAvailabilityLoaded) return true
     var name = String(node.name)
+    if (name === fxTargetSink) return false
+    // The FX virtual sink itself is not a user-selectable output either —
+    // picking it would bypass the routing rules (and double-process).
+    if (name === "gdy_audiofx") return false
     return sinkAvailability[name] !== false
   }
 
@@ -1163,7 +1356,7 @@ Panel {
                   anchors.right: infoRow.visible ? infoRow.left : parent.right
                   anchors.rightMargin: root.sp(8)
                   anchors.verticalCenter: parent.verticalCenter
-                  text: "omaudio"
+                  text: "audiofx"
                   color: root.bar.foreground
                   font.family: root.bar.fontFamily
                   font.pixelSize: root.fontTitle
@@ -1502,6 +1695,167 @@ Panel {
                   width: panelColumn.width
                   node: modelData
                   rowIndex: index
+                }
+              }
+            }
+
+            // ---- Audio FX: effect pills + strength (gdeyoung.audiofx) ----
+            PanelSeparator {
+              visible: root.showFxSection
+              foreground: root.bar.foreground
+            }
+
+            Column {
+              visible: root.showFxSection
+              width: parent.width
+              spacing: root.sp(10)
+
+              Item {
+                width: parent.width
+                implicitHeight: Math.max(fxSectionLabel.implicitHeight, fxBadge.implicitHeight)
+
+                SectionLabel {
+                  id: fxSectionLabel
+                  icon: "\uf0d0"
+                  text: "EFFECTS"
+                  foreground: root.bar.foreground
+                  fontFamily: root.bar.fontFamily
+                }
+
+                Text {
+                  id: fxBadge
+                  visible: root.fxStatus.active && !root.fxApplying
+                  anchors.right: parent.right
+                  anchors.rightMargin: root.sp(6)
+                  anchors.verticalCenter: parent.verticalCenter
+                  textFormat: Text.PlainText
+                  text: "ON"
+                  color: root.accent
+                  font.family: root.bar.fontFamily
+                  font.pixelSize: root.fontCaption
+                  font.bold: true
+                  font.letterSpacing: 1.2
+                }
+
+                Text {
+                  visible: root.fxApplying
+                  anchors.right: parent.right
+                  anchors.rightMargin: root.sp(6)
+                  anchors.verticalCenter: parent.verticalCenter
+                  textFormat: Text.PlainText
+                  text: "…"
+                  color: root.bar.foreground
+                  font.family: root.bar.fontFamily
+                  font.pixelSize: root.fontCaption
+                }
+              }
+
+              Segmented {
+                width: parent.width
+                columns: root.fxPresets.length
+                opacity: root.fxApplying ? 0.5 : 1.0
+                enabled: !root.fxApplying
+                choices: root.fxPresets.map(function(p) { return { value: p.id, label: p.label } })
+                selected: root.fxActivePresetId()
+                onPicked: function(value) {
+                  if (root.fxApplying) return
+                  for (var i = 0; i < root.fxPresets.length; i++)
+                    if (root.fxPresets[i].id === value) { root.fxApplyPreset(root.fxPresets[i]); break }
+                }
+              }
+
+              // Strength of the chosen effect; a pill picks the dimension,
+              // otherwise the first non-zero effect of the preset drives it.
+              Column {
+                visible: root.fxStatus.active && !root.fxApplying && root.fxDimension() !== ""
+                width: parent.width
+                spacing: root.sp(4)
+
+                Row {
+                  width: parent.width
+
+                  Text {
+                    id: fxStrengthLabel
+                    textFormat: Text.PlainText
+                    text: root.fxDimensionLabel()
+                    color: root.bar.foreground
+                    opacity: 0.6
+                    font.family: root.bar.fontFamily
+                    font.pixelSize: root.fontCaption
+                    font.bold: true
+                    font.letterSpacing: 1.2
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
+
+                  Text {
+                    textFormat: Text.PlainText
+                    text: root.fxDimensionValue() + "%"
+                    color: root.bar.foreground
+                    opacity: 0.6
+                    font.family: root.bar.fontFamily
+                    font.pixelSize: root.fontCaption
+                    font.bold: true
+                    anchors.right: parent.right
+                    anchors.rightMargin: root.sp(6)
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
+                }
+
+                PanelSlider {
+                  bar: root.bar
+                  width: parent.width
+                  minimum: 0
+                  maximum: 100
+                  step: root.scrollStep
+                  value: root.fxDimensionValue()
+                  fillColor: root.accent
+                  knobColor: root.accent
+                  onMoved: function(v) { root.fxSetAmount(root.fxDimension(), Math.round(v)) }
+                }
+              }
+
+              // Routing: system-wide FX vs all-except-listed (games direct).
+              // apps mode excludes the listed apps; per-stream chips below
+              // add to / remove from that list.
+              Column {
+                visible: root.fxStatus.active && !root.fxApplying
+                width: parent.width
+                spacing: root.sp(4)
+
+                SectionLabel {
+                  icon: "\uf074"
+                  text: "APPLY TO"
+                  foreground: root.bar.foreground
+                  fontFamily: root.bar.fontFamily
+                }
+
+                Segmented {
+                  width: parent.width
+                  columns: 2
+                  opacity: root.fxRulesBusy ? 0.5 : 1.0
+                  enabled: !root.fxRulesBusy
+                  choices: [
+                    { value: "system", label: "Everything" },
+                    { value: "apps", label: "All except…" }
+                  ]
+                  selected: root.fxStatus.mode
+                  onPicked: function(value) { root.fxSetMode(value) }
+                }
+
+                Text {
+                  visible: root.fxStatus.mode === "apps"
+                  width: parent.width
+                  wrapMode: Text.WordWrap
+                  textFormat: Text.PlainText
+                  text: {
+                    var ex = root.fxStatus.excluded || []
+                    return ex.length ? "Bypassed: " + ex.join(", ") : "Nothing bypassed — tap a stream's FX chip below"
+                  }
+                  color: root.bar.foreground
+                  opacity: 0.6
+                  font.family: root.bar.fontFamily
+                  font.pixelSize: root.fontCaption
                 }
               }
             }
@@ -2060,6 +2414,47 @@ Panel {
           }
         }
       }
+
+      // FX chip: which way this app is routed. Hidden when FX are off or
+      // the panel is busy applying. system mode = all FX on; apps mode =
+      // only non-excluded apps get FX.
+      Rectangle {
+        id: fxBypassChip
+        visible: root.showFxSection && root.fxStatus.active && !root.fxRulesBusy && !root.fxApplying
+        readonly property bool bypassed: {
+          var ex = root.fxStatus.excluded || []
+          var key = root.streamLabelKey(root.streamLabel(streamRow.node))
+          for (var i = 0; i < ex.length; i++) {
+            var e = String(ex[i]).toLowerCase()
+            if (e === key || e.indexOf(key) !== -1 || key.indexOf(e) !== -1) return true
+          }
+          return false
+        }
+        width: fxBypassLabel.implicitWidth + root.sp(12)
+        height: fxBypassLabel.implicitHeight + root.sp(6)
+        radius: height / 2
+        color: bypassed ? Util.alpha(root.bar.foreground, 0.08) : Util.alpha(root.bar.foreground, 0.22)
+        border.width: bypassed ? 0 : 1
+        border.color: root.bar.foreground
+
+        Text {
+          id: fxBypassLabel
+          anchors.centerIn: parent
+          textFormat: Text.PlainText
+          text: fxBypassChip.bypassed ? "FX OFF" : "FX ON"
+          color: root.bar.foreground
+          font.family: root.bar.fontFamily
+          font.pixelSize: root.fontCaption
+          font.bold: true
+        }
+
+        MouseArea {
+          anchors.fill: parent
+          cursorShape: Qt.PointingHandCursor
+          hoverEnabled: true
+          onClicked: root.fxToggleApp(root.streamLabel(streamRow.node))
+        }
+      }
     }
 
     MouseArea {
@@ -2509,6 +2904,13 @@ Panel {
         label: "Disabled devices section"
         checked: root.showDisabled
         onToggled: root.setSetting("showDisabled", !root.showDisabled)
+      }
+
+      SettingSwitch {
+        width: parent.width
+        label: "Effects section"
+        checked: root.showFxSection
+        onToggled: root.setSetting("showFxSection", !root.showFxSection)
       }
 
       SettingSwitch {

@@ -1,21 +1,25 @@
 #!/bin/bash
 
-# Helpers for the omaudiopanel audio panel: disabling audio devices and routing
+# Helpers for the audiofx audio panel: disabling audio devices and routing
 # individual application streams to a specific output.
 #
-#   omaudiopanel list-disabled                    name<TAB>kind<TAB>label<TAB>card<TAB>part
-#   omaudiopanel disable <node-name> <sink|source> <label>
-#   omaudiopanel enable <node-name>
-#   omaudiopanel list-streams                     id<TAB>current<TAB>routed<TAB>app<TAB>paused(0|1)
-#   omaudiopanel list-pins                        app<TAB>sink-name<TAB>sink-label
-#   omaudiopanel pin <app> <sink-name> <label> [stream-id]
+#   audiofx list-disabled                    name<TAB>kind<TAB>label<TAB>card<TAB>part
+#   audiofx disable <node-name> <sink|source> <label>
+#   audiofx enable <node-name>
+#   audiofx list-streams                     id<TAB>current<TAB>routed<TAB>app<TAB>paused(0|1)
+#   audiofx list-pins                        app<TAB>sink-name<TAB>sink-label
+#   audiofx pin <app> <sink-name> <label> [stream-id]
 #                                                 always play <app> on that output
-#   omaudiopanel unpin <app>
-#   omaudiopanel apply-pins                       route new streams of pinned apps
-#   omaudiopanel route <stream-id> <sink-name>
-#   omaudiopanel unroute <stream-id>
-#   omaudiopanel set-default-sink <node-id> <sink-name>
-#   omaudiopanel volume <up|down>                 step by the panel's scrollStep
+#   audiofx unpin <app>
+#   audiofx apply-pins                       route new streams of pinned apps
+#   audiofx route <stream-id> <sink-name>
+#   audiofx unroute <stream-id>
+#   audiofx set-default-sink <node-id> <sink-name>
+#   audiofx volume <up|down>                 step by the panel's scrollStep
+#   audiofx fx-status                        engine status as JSON
+#   audiofx fx-apply <preset-json|off>       apply an effect preset
+#   audiofx fx-rules <system|apps> <excluded-json>
+#                                            which apps the effects cover
 #
 # Disabling switches the device's card to the profile without that output or
 # input (e.g. output:analog-stereo+input:mono-fallback -> output:analog-stereo),
@@ -28,21 +32,25 @@
 
 set -u
 
-state_dir=${XDG_STATE_HOME:-$HOME/.local/state}/omaudiopanel
+state_dir=${XDG_STATE_HOME:-$HOME/.local/state}/audiofx
 state_file=$state_dir/disabled-nodes
 pins_file=$state_dir/pins
 # A route a pin creates carries this metadata key, valued "app|sink" (sink
 # names never contain "|"). PipeWire drops a stream's metadata when the stream
 # goes away, so the marker can never outlive its stream or attach to a reused
 # id. A route set by hand clears the marker; unpin undoes only marked routes.
-pin_marker=omaudiopanel.pin
+pin_marker=audiofx.pin
 # Commands that change routes or pins take this lock, so the two panel
 # instances and back-to-back clicks cannot interleave their reads and writes.
-lock_file=${XDG_RUNTIME_DIR:-$state_dir}/omaudiopanel.lock
+lock_file=${XDG_RUNTIME_DIR:-$state_dir}/audiofx.lock
 shell_config=${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/shell.json
+# The FX engine (github.com/gdeyoung/omarchy-audiofx) is a system component
+# with its own systemd user units; the panel reaches it only through these
+# fx-* commands. AUDIOFX_ENGINE overrides the location for tests.
+fx_engine=${AUDIOFX_ENGINE:-$HOME/.local/bin/audiofx}
 
 usage() {
-  sed -n '6,18p' "$0" | sed 's/^# \{0,3\}//' >&2
+  sed -n '6,22p' "$0" | sed 's/^# \{0,3\}//' >&2
   exit 1
 }
 
@@ -173,7 +181,7 @@ case $cmd in
   pin | unpin | apply-pins | route | unroute | set-default-sink)
     mkdir -p "$(dirname "$lock_file")"
     exec 9>"$lock_file"
-    flock -w 30 9 || { echo "omaudiopanel: could not take $lock_file" >&2; exit 1; }
+    flock -w 30 9 || { echo "audiofx: could not take $lock_file" >&2; exit 1; }
     ;;
 esac
 
@@ -241,10 +249,29 @@ case $cmd in
     remove_entry "$name"
     ;;
 
+  fx-status)
+    [[ -x $fx_engine ]] || { echo "[ERROR:] audiofx engine not found at $fx_engine" >&2; exit 1; }
+    exec "$fx_engine" status
+    ;;
+
+  fx-apply)
+    preset=${1:-}
+    [[ -n $preset ]] || usage
+    [[ -x $fx_engine ]] || { echo "[ERROR:] audiofx engine not found at $fx_engine" >&2; exit 1; }
+    exec "$fx_engine" apply "$preset"
+    ;;
+
+  fx-rules)
+    mode=${1:-} excluded=${2:-}
+    [[ -n $mode ]] || usage
+    [[ -x $fx_engine ]] || { echo "[ERROR:] audiofx engine not found at $fx_engine" >&2; exit 1; }
+    exec "$fx_engine" rules "$mode" "$excluded"
+    ;;
+
   volume)
     # Same step as the bar icon's scroll wheel, for the volume keys and any
     # hardware volume wheel that sends them.
-    step=$(jq -r '[.. | objects | select(.id? == "videinfra.omaudiopanel") | .scrollStep? // empty][0] // 5' "$shell_config" 2>/dev/null)
+    step=$(jq -r '[.. | objects | select(.id? == "gdeyoung.audiofx") | .scrollStep? // empty][0] // 5' "$shell_config" 2>/dev/null)
     [[ $step =~ ^[0-9]+$ ]] || step=5
     case ${1:-} in
       up) exec omarchy-audio-output-volume "+$step" ;;
@@ -315,7 +342,7 @@ case $cmd in
     [[ -n $app ]] || usage
     # Read the metadata first: if that fails, change nothing, so the pin is
     # still listed and can be removed again from the panel.
-    dump=$(metadata_dump) || { echo "omaudiopanel: could not read PipeWire metadata" >&2; exit 1; }
+    dump=$(metadata_dump) || { echo "audiofx: could not read PipeWire metadata" >&2; exit 1; }
     [[ -f $pins_file ]] && A=$app awk -F'\t' '$1 != ENVIRON["A"]' "$pins_file" >"$pins_file.tmp" && mv "$pins_file.tmp" "$pins_file"
     routes=$(parse_routes <<<"$dump")
     load_markers "$dump"
