@@ -4,8 +4,8 @@ Omarchy's audio panel, with the controls it was missing — plus system-wide
 sound effects. Drop-in replacement. Follows Omarchy themes.
 
 <p>
-  <img src="assets/omaudiopanel.png" alt="The audiofx panel with its version and GitHub link in the header: playing bars and a mute switch on OUTPUT and INPUT, a Bluetooth speaker marked as such, Brave in the mixer with its output field and mute switch, the folded Disabled section and the volume step choices" width="360">
-  <img src="assets/omaudioroute.png" alt="The same panel with Brave's output picker open, the option to always play it on one output, and the power icon for disabling an output" width="300">
+  <img src="assets/audiofx-panel.png" alt="The audiofx panel: OUTPUT slider and mute, playing bars, an Audio FX row in the output list, INPUT section, a pw-play app at 100% playing on Audio FX with an FX ON chip, the EFFECTS section with preset pills (3D active), a 3D strength slider at 60%, APPLY TO choices, and the volume step footer" width="360">
+  <img src="assets/audiofx-route.png" alt="The same panel with an app's output picker open — where should it play, the option to always play it on one output, a device with its disable (power) icon, and the folded Disabled section" width="300">
 </p>
 
 A drop-in replacement for the built-in `omarchy.audio` bar widget. Everything
@@ -74,8 +74,13 @@ are active (selecting it would bypass them), and volume keys resolve through
 the FX sink to the real device.
 
 The engine (`audiofx.py`, `irgen.py` — MIT, python-numpy) is a sibling
-component, not part of this repo: clone it, symlink the CLI onto
-`~/.local/bin/audiofx`, and enable its two user units.
+component: [gdeyoung/audiofx-engine](https://github.com/gdeyoung/audiofx-engine).
+
+```bash
+git clone https://github.com/gdeyoung/audiofx-engine ~/audiofx-engine
+mkdir -p ~/.local/bin && ln -s ~/audiofx-engine/audiofx.py ~/.local/bin/audiofx
+audiofx apply '{"spatial":60,"bass":50,"night":0}'   # first apply enables its units
+```
 
 ### Volume keys (optional)
 
