@@ -4,7 +4,7 @@ Omarchy's audio panel, with the controls it was missing — plus system-wide
 sound effects. Drop-in replacement. Follows Omarchy themes.
 
 <p>
-  <img src="assets/audiofx.png" alt="The audiofx panel with its version and GitHub link in the header: playing bars and a mute switch on OUTPUT and INPUT, a Bluetooth speaker marked as such, Brave in the mixer with its output field and mute switch, the folded Disabled section and the volume step choices" width="360">
+  <img src="assets/omaudiopanel.png" alt="The audiofx panel with its version and GitHub link in the header: playing bars and a mute switch on OUTPUT and INPUT, a Bluetooth speaker marked as such, Brave in the mixer with its output field and mute switch, the folded Disabled section and the volume step choices" width="360">
   <img src="assets/omaudioroute.png" alt="The same panel with Brave's output picker open, the option to always play it on one output, and the power icon for disabling an output" width="300">
 </p>
 
