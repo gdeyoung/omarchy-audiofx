@@ -184,3 +184,18 @@ test("parseDisabledDevices skips entries whose kind is not sink or source", () =
   const d = M.parseDisabledDevices("a\tsink\tA\nb\tbogus\tB\nc\t\tC\nd\tsource\tD\n")
   assert.deepEqual(d.map(x => x.name + ":" + x.kind), ["a:sink", "d:source"])
 })
+
+test("parseDoctor parses doctor JSON and rejects garbage", () => {
+  const ok = M.parseDoctor('{"engine":"active","faults":[],"ok":true}')
+  assert.equal(ok.engine, "active")
+  assert.equal(M.parseDoctor(""), null)
+  assert.equal(M.parseDoctor("not json{"), null)
+})
+
+test("doctorFaultHint maps the engine's fault strings to short fixes", () => {
+  assert.match(M.doctorFaultHint("virtual sink gdy_audiofx is MUTED (plumbing; guardian should heal — restart audiofx-watch)"), /audiofx-watch/)
+  assert.match(M.doctorFaultHint("3 stream(s) playing into MUTED alsa_output — audible-to-nobody (unmute output)"), /Unmute the output/)
+  assert.match(M.doctorFaultHint("default source alsa_input is MUTED — no mic input (voxtype/calls dead)"), /INPUT switch/)
+  assert.equal(M.doctorFaultHint(""), "")
+  assert.match(M.doctorFaultHint("something novel"), /journalctl/)
+})

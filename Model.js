@@ -421,6 +421,28 @@ function settingBool(value, fallback) {
   return fallback
 }
 
+// Short fix hint for a doctor fault string, shown in the help view. The
+// wording mirrors the engine's README fault table so CLI and panel agree.
+function doctorFaultHint(fault) {
+  if (!fault) return ""
+  if (fault.indexOf("MUTED") !== -1 && fault.indexOf("virtual sink") !== -1)
+    return "Heals itself in ~1s; if not, restart audiofx-watch."
+  if (fault.indexOf("stream") !== -1 && fault.indexOf("MUTED") !== -1)
+    return "Unmute the output — the speaker switch or volume keys."
+  if (fault.indexOf("source") !== -1 && fault.indexOf("MUTED") !== -1)
+    return "Unmute the input — the INPUT switch in this panel."
+  if (fault.indexOf("volume") !== -1 && fault.indexOf("100") !== -1)
+    return "Heals itself in ~1s; if not, restart audiofx-watch."
+  return "Run: journalctl --user -u audiofx-watch"
+}
+
+// Parses one line of `audiofx doctor` JSON (as surfaced by fx-doctor) or
+// null. Engine-absent markers {"engine":"missing"} parse the same way.
+function parseDoctor(text) {
+  if (!text) return null
+  try { return JSON.parse(String(text).trim()) } catch (e) { return null }
+}
+
 // The output a pin should use: the one chosen for the stream, or else the one
 // it is playing on now. info is a parseStreams entry.
 function pinTarget(info) {
@@ -475,6 +497,8 @@ if (typeof module !== "undefined") {
     accentColor: accentColor,
     densityScale: densityScale,
     settingBool: settingBool,
+    doctorFaultHint: doctorFaultHint,
+    parseDoctor: parseDoctor,
     fontSizeScale: fontSizeScale,
     isBluetooth: isBluetooth
   }

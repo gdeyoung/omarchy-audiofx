@@ -7,6 +7,7 @@ import Quickshell.Services.Pipewire
 import qs.Ui
 import qs.Commons
 import "Model.js" as Model
+import "Copy.js" as Copy
 
 Panel {
   id: root
@@ -162,6 +163,9 @@ Panel {
   readonly property bool showHeaderInfo: Model.settingBool(setting("showHeaderInfo", true), true)
   readonly property bool showFxSection: Model.settingBool(setting("showFxSection", true), true)
   property bool settingsOpen: false
+  property bool helpOpen: false
+  property var doctor: null        // parsed fx-doctor JSON, or null before a run
+  property bool doctorRunning: false
 
   // Style.space scaled by the chosen density.
   function sp(px) {
@@ -1098,6 +1102,30 @@ Panel {
   }
 
   Process {
+    id: doctorProc
+    command: [root.helperPath, "fx-doctor"]
+    stdout: StdioCollector {
+      onStreamFinished: {
+        root.doctor = Model.parseDoctor(text)
+        root.doctorRunning = false
+      }
+    }
+  }
+
+  function runDoctor() {
+    root.doctor = null
+    root.doctorRunning = true
+    doctorProc.running = true
+  }
+
+  Process {
+    id: openDocsProc
+    command: ["sh", "-c", "exec xdg-open \"$1\"", "sh", "https://github.com/gdeyoung/audiofx-engine#troubleshooting"]
+  }
+
+  readonly property var doctorResult: doctor
+
+  Process {
     id: disabledListProc
     command: [root.helperPath, "list-disabled"]
     stdout: StdioCollector {
@@ -1316,6 +1344,39 @@ Panel {
               }
             }
 
+            // Opens the help view in place of the panel content.
+            Text {
+              id: helpButton
+              anchors.right: gearButton.left
+              anchors.rightMargin: root.sp(12)
+              anchors.verticalCenter: parent.verticalCenter
+              textFormat: Text.PlainText
+              text: root.helpOpen ? "󰅖" : "󰋖"
+              color: helpMouse.containsMouse || root.helpOpen ? root.accent : root.bar.foreground
+              font.family: root.bar.fontFamily
+              font.pixelSize: Math.round(root.fontTitle * 1.45)
+              opacity: helpMouse.containsMouse || root.helpOpen ? 1.0 : 0.85
+
+              MouseArea {
+                id: helpMouse
+                anchors.fill: parent
+                anchors.margins: -root.sp(4)
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                  root.helpOpen = !root.helpOpen
+                  if (root.helpOpen) root.settingsOpen = false
+                  root.cursorActive = false
+                }
+              }
+
+              PanelToolTip {
+                visible: helpMouse.containsMouse
+                text: root.helpOpen ? "Close help" : "Troubleshooting"
+                fontFamily: root.bar.fontFamily
+              }
+            }
+
             // Opens the settings view in place of the panel content.
             Text {
               id: gearButton
@@ -1339,6 +1400,7 @@ Panel {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
                   root.settingsOpen = !root.settingsOpen
+                  if (root.settingsOpen) root.helpOpen = false
                   root.cursorActive = false
                 }
               }
@@ -1355,7 +1417,7 @@ Panel {
               anchors.left: heroIcon.right
               anchors.leftMargin: root.sp(14)
               anchors.right: parent.right
-              anchors.rightMargin: powerSwitch.width + gearButton.width + root.sp(24)
+              anchors.rightMargin: powerSwitch.width + gearButton.width + helpButton.width + root.sp(36)
               anchors.verticalCenter: parent.verticalCenter
               spacing: root.sp(2)
 
@@ -1443,7 +1505,7 @@ Panel {
           Column {
             width: parent.width
             spacing: root.sp(14)
-            visible: !root.settingsOpen
+            visible: !root.settingsOpen && !root.helpOpen
 
             // ---- Output devices ----
             PanelSeparator {
@@ -1989,6 +2051,11 @@ Panel {
           SettingsView {
             width: parent.width
             visible: root.settingsOpen
+          }
+
+          HelpView {
+            width: parent.width
+            visible: root.helpOpen
           }
         }
       }
@@ -2798,8 +2865,299 @@ Panel {
     }
   }
 
-  // Replaces the panel content while the gear is on. Every change is saved
-  // to shell.json straight away and read back through setting().
+  // Replaces the panel content while the ? is on. Runs the engine's doctor
+  // audit in place and, when the engine is missing, shows the install helper.
+  component HelpView: Column {
+    id: helpView
+    spacing: root.sp(12)
+
+    function shortSink(name) {
+      if (!name) return "—"
+      var parts = String(name).split(".")
+      var tail = parts[parts.length - 1]
+      return tail.replace(/__/g, " ").replace(/_/g, " ") || String(name)
+    }
+
+    PanelSeparator {
+      foreground: root.bar.foreground
+    }
+
+    Item {
+      width: parent.width
+      implicitHeight: helpBack.implicitHeight
+
+      Text {
+        id: helpBack
+        textFormat: Text.PlainText
+        text: "󰁍 Back"
+        color: root.bar.foreground
+        font.family: root.bar.fontFamily
+        font.pixelSize: root.fontCaption
+        font.bold: true
+        opacity: helpBackMouse.containsMouse ? 1.0 : 0.75
+
+        MouseArea {
+          id: helpBackMouse
+          anchors.fill: parent
+          anchors.margins: -root.sp(4)
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onClicked: root.helpOpen = false
+        }
+      }
+    }
+
+    SectionLabel {
+      icon: "\uf05a"
+      text: "TROUBLESHOOTING"
+      foreground: root.bar.foreground
+      fontFamily: root.bar.fontFamily
+    }
+
+    Text {
+      width: parent.width
+      wrapMode: Text.WordWrap
+      textFormat: Text.PlainText
+      text: "No sound or no microphone? Run the diagnostics — it checks the whole audio tree and names the exact fault."
+      color: root.bar.foreground
+      opacity: 0.8
+      font.family: root.bar.fontFamily
+      font.pixelSize: root.fontCaption
+    }
+
+    // Run button — same visual weight as a settings row.
+    Rectangle {
+      width: parent.width
+      height: root.sp(34)
+      radius: root.sp(8)
+      color: doctorRunMouse.containsMouse ? root.selectedFill : root.hoverFill
+
+      Text {
+        anchors.centerIn: parent
+        textFormat: Text.PlainText
+        text: root.doctorRunning ? "Running…" : (root.doctor ? "Run again" : "Run diagnostics")
+        color: root.accent
+        font.family: root.bar.fontFamily
+        font.pixelSize: root.fontBody
+        font.bold: true
+      }
+
+      MouseArea {
+        id: doctorRunMouse
+        anchors.fill: parent
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        onClicked: root.runDoctor()
+      }
+    }
+
+    // ---- Results ----
+    Column {
+      width: parent.width
+      visible: root.doctor !== null && root.doctorRunning === false
+      spacing: root.sp(6)
+
+      Repeater {
+        model: {
+          var d = root.doctor
+          if (!d) return []
+          var rows = []
+          var engine = d.engine === "missing" ? "not installed"
+            : d.engine === "unreachable" ? "installed but not answering"
+            : d.engine
+          rows.push({ label: "Engine", value: engine, warn: d.engine !== "active" })
+          if (d.target) {
+            rows.push({ label: "Output", value: helpView.shortSink(d.target) +
+              (d.targetMuted ? " — muted" : " — " + Math.round((d.targetVolume || 0) * 100) + "%"),
+              warn: d.targetMuted === true })
+          }
+          if (d.defaultSource) {
+            rows.push({ label: "Microphone", value: d.sourceMuted ? "muted" : "live",
+              warn: d.sourceMuted === true })
+          }
+          return rows
+        }
+        delegate: Row {
+          width: parent.width
+          spacing: root.sp(8)
+
+          Text {
+            textFormat: Text.PlainText
+            text: modelData.label
+            color: root.bar.foreground
+            opacity: 0.65
+            font.family: root.bar.fontFamily
+            font.pixelSize: root.fontCaption
+            font.bold: true
+            width: root.sp(84)
+          }
+          Text {
+            textFormat: Text.PlainText
+            text: modelData.value
+            color: modelData.warn ? root.accent : root.bar.foreground
+            font.bold: modelData.warn
+            font.family: root.bar.fontFamily
+            font.pixelSize: root.fontCaption
+            elide: Text.ElideRight
+            width: parent.width - root.sp(92)
+          }
+        }
+      }
+
+      Repeater {
+        model: root.doctor && root.doctor.faults ? root.doctor.faults : []
+        delegate: Column {
+          width: parent.width
+          spacing: root.sp(2)
+
+          Text {
+            width: parent.width
+            wrapMode: Text.WordWrap
+            textFormat: Text.PlainText
+            text: "⚠ " + modelData
+            color: root.accent
+            font.bold: true
+            font.family: root.bar.fontFamily
+            font.pixelSize: root.fontCaption
+          }
+          Text {
+            width: parent.width
+            wrapMode: Text.WordWrap
+            textFormat: Text.PlainText
+            text: Model.doctorFaultHint(modelData)
+            color: root.bar.foreground
+            opacity: 0.7
+            font.family: root.bar.fontFamily
+            font.pixelSize: root.fontCaption
+          }
+        }
+      }
+
+      Text {
+        visible: root.doctor && root.doctor.ok === true
+        width: parent.width
+        wrapMode: Text.WordWrap
+        textFormat: Text.PlainText
+        text: "Everything checks out — no faults found."
+        color: root.bar.foreground
+        opacity: 0.65
+        font.family: root.bar.fontFamily
+        font.pixelSize: root.fontCaption
+      }
+    }
+
+    // ---- Engine install helper (only when missing) ----
+    Column {
+      width: parent.width
+      visible: root.doctor && root.doctor.engine === "missing"
+      spacing: root.sp(6)
+
+      SectionLabel {
+        icon: "\uf019"
+        text: "INSTALL THE EFFECTS ENGINE"
+        foreground: root.bar.foreground
+        fontFamily: root.bar.fontFamily
+      }
+
+      Repeater {
+        model: [
+          "git clone https://github.com/gdeyoung/audiofx-engine ~/audiofx-engine",
+          "ln -s ~/audiofx-engine/audiofx.py ~/.local/bin/audiofx",
+          "audiofx apply '{\"spatial\":60,\"bass\":50,\"night\":0}'"
+        ]
+        delegate: Row {
+          width: parent.width
+          spacing: root.sp(8)
+
+          Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width - copyBtn.width - root.sp(8)
+            height: installCmd.implicitHeight + root.sp(10)
+            radius: root.sp(6)
+            color: root.hoverFill
+
+            Text {
+              id: installCmd
+              anchors.fill: parent
+              anchors.margins: root.sp(6)
+              textFormat: Text.PlainText
+              text: modelData
+              color: root.bar.foreground
+              font.family: "monospace"
+              font.pixelSize: root.fontCaption
+              elide: Text.ElideMiddle
+              verticalAlignment: Text.AlignVCenter
+            }
+          }
+
+          Text {
+            id: copyBtn
+            anchors.verticalCenter: parent.verticalCenter
+            textFormat: Text.PlainText
+            text: copyMouse.copied ? "✓ Copied" : "Copy"
+            color: copyMouse.containsMouse || copyMouse.copied ? root.accent : root.bar.foreground
+            opacity: copyMouse.containsMouse || copyMouse.copied ? 1.0 : 0.7
+            font.family: root.bar.fontFamily
+            font.pixelSize: root.fontCaption
+            font.bold: true
+
+            MouseArea {
+              id: copyMouse
+              property bool copied: false
+              anchors.fill: parent
+              anchors.margins: -root.sp(4)
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: {
+                helpCopier.run(modelData)
+                copied = true
+                copyReset.restart()
+              }
+              Timer {
+                id: copyReset
+                interval: 1500
+                onTriggered: copyMouse.copied = false
+              }
+            }
+          }
+        }
+      }
+
+      Text {
+        width: parent.width
+        wrapMode: Text.WordWrap
+        textFormat: Text.PlainText
+        text: "Then reload this panel. Effects are system-wide; this panel drives them."
+        color: root.bar.foreground
+        opacity: 0.65
+        font.family: root.bar.fontFamily
+        font.pixelSize: root.fontCaption
+      }
+    }
+
+    CopyRunner { id: helpCopier }
+
+    Text {
+      width: parent.width
+      textFormat: Text.PlainText
+      text: "Open the troubleshooting guide 󰁔"
+      color: docsMouse.containsMouse ? root.accent : root.bar.foreground
+      opacity: docsMouse.containsMouse ? 1.0 : 0.75
+      font.family: root.bar.fontFamily
+      font.pixelSize: root.fontCaption
+      font.bold: true
+
+      MouseArea {
+        id: docsMouse
+        anchors.fill: parent
+        anchors.margins: -root.sp(4)
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        onClicked: openDocsProc.running = true
+      }
+    }
+  }
+
   component SettingsView: Column {
     spacing: root.sp(12)
 

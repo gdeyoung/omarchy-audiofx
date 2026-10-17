@@ -20,6 +20,7 @@
 #   audiofx fx-apply <preset-json|off>       apply an effect preset
 #   audiofx fx-rules <system|apps> <excluded-json>
 #                                            which apps the effects cover
+#   audiofx fx-doctor                        audio tree audit as JSON
 #
 # Disabling switches the device's card to the profile without that output or
 # input (e.g. output:analog-stereo+input:mono-fallback -> output:analog-stereo),
@@ -259,6 +260,18 @@ case $cmd in
     [[ -n $preset ]] || usage
     [[ -x $fx_engine ]] || { echo "[ERROR:] audiofx engine not found at $fx_engine" >&2; exit 1; }
     exec "$fx_engine" apply "$preset"
+    ;;
+
+  fx-doctor)
+    # Engine absent is a state, not an error: the panel's help view shows the
+    # install helper off this marker.
+    if [[ ! -x $fx_engine ]]; then
+      echo '{"engine":"missing"}'
+      exit 0
+    fi
+    out=$("$fx_engine" doctor 2>/dev/null) || true
+    [[ -n $out ]] || echo '{"engine":"unreachable"}'
+    [[ -n $out ]] && echo "$out"
     ;;
 
   fx-rules)
