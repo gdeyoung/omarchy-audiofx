@@ -168,6 +168,12 @@ script the panel calls:
   regenerate their impulse response per strength, 3D is a wet/dry blend.
   Apply is transactional: config render → unit restart → sink-present check,
   with rollback to the previous default sink on failure.
+- **Mute writes go to both ends of the chain.** With effects active the
+  panel resolves the physical device the chain feeds (the same definition
+  the volume keys use), and a mute or unmute sets both that device and the
+  FX sink — so a switch can never flip one end while the other stays wedged.
+  The engine's guardian keeps the FX sink pinned as plumbing regardless; see
+  the [engine's mute-authority docs](https://github.com/gdeyoung/audiofx-engine#mute--volume-authority).
 
 ### What the plugin runs
 
@@ -178,6 +184,21 @@ script the panel calls:
 | `jq` | parse the above |
 | `omarchy-audio-output-volume` | the volume-key step |
 | `~/.local/bin/audiofx` (engine) | status / apply preset / routing rules |
+
+## Troubleshooting
+
+**No sound, or no mic input?** Run the engine's audit first — it prints the
+whole audio tree and names the exact wedge:
+
+```sh
+audiofx doctor
+```
+
+It exits non-zero with a plain-English fault when audio is playing into a
+muted device, when the effects sink has been tampered with, or when the
+microphone is muted (dead dictation/calls). On a healthy system it prints
+the full state and exits 0. Details and the fault table:
+[audiofx-engine → Troubleshooting](https://github.com/gdeyoung/audiofx-engine#troubleshooting).
 
 ## Limits
 
