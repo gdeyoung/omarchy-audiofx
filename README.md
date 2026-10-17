@@ -1,5 +1,7 @@
 # Audio FX
 
+![Audio FX](preview.png)
+
 Omarchy's audio panel, with the controls it was missing — plus system-wide
 sound effects. Drop-in replacement. Follows Omarchy themes.
 

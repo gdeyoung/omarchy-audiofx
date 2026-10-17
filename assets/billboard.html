@@ -1,0 +1,64 @@
+<!doctype html>
+<!-- Source for preview.png (house billboard style, 2000x1125). Render with:
+     chromium --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=1 \
+       --window-size=2000,1125 --allow-file-access-from-files \
+       --screenshot=../preview.png "file://$PWD/assets/billboard.html"
+-->
+<html><head><meta charset="utf-8"><style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:2000px;height:1125px;overflow:hidden}
+body{background:#0d0f14;font-family:"JetBrainsMono Nerd Font","JetBrains Mono",monospace;color:#eef4f0;position:relative}
+.left{position:absolute;left:100px;top:118px;width:820px}
+.eyebrow{font-size:26px;font-weight:700;letter-spacing:6px;color:#5fd6a0}
+h1{margin-top:34px;font-family:"Inter","Geist",system-ui,sans-serif;font-size:84px;font-weight:800;letter-spacing:-2px;line-height:1.08;color:#f4f8f5}
+.para{margin-top:34px;font-size:22px;line-height:1.65;color:#a8b4ae;max-width:760px}
+.cols{margin-top:44px;display:flex;gap:70px}
+ul{list-style:none;width:360px}
+li{font-size:20px;line-height:1.5;color:#d7e2db;padding-left:30px;position:relative;margin-bottom:16px}
+li::before{content:"\25C6";position:absolute;left:0;color:#5fd6a0;font-size:14px;top:5px}
+.footer{position:absolute;left:100px;bottom:66px;width:820px}
+.footer .rule{height:1px;background:#2a2f36;margin-bottom:20px}
+.footer .row{display:flex;justify-content:space-between;font-size:18px;color:#77827c}
+.right{position:absolute;left:1080px;top:0;width:920px;height:1125px}
+.card{position:absolute;border-radius:12px;overflow:hidden;border:1px solid #2a2f36;box-shadow:0 24px 70px rgba(0,0,0,.6)}
+.card img{display:block}
+.cap{position:absolute;font-size:17px;font-weight:700;letter-spacing:3px;color:#77827c}
+.c1{left:70px;top:88px;width:392px}
+.c1 img{width:392px;height:auto}
+.c2{left:540px;top:280px;width:316px;z-index:-1}
+.c2 img{width:316px;height:auto}
+.cap1{left:70px;top:54px}
+.cap2{left:540px;top:246px}
+</style></head><body>
+<div class="left">
+ <div class="eyebrow">AUDIO FX / GDEYOUNG</div>
+ <h1>One panel for<br>everything audio.</h1>
+ <div class="para">Volume, routing and per-app mixing like the stock panel &mdash; plus a
+ system-wide effects rack: 3D binaural, bass, night and movie presets on a PipeWire
+ filter-chain sink, with per-app bypass.</div>
+ <div class="cols">
+  <ul>
+   <li>3D &middot; bass &middot; night &middot; movie presets</li>
+   <li>Route &amp; pin any app to any output</li>
+   <li>Disable outputs &amp; inputs per side</li>
+   <li>Per-app mixer with FX on/off chips</li>
+  </ul>
+  <ul>
+   <li>Strength slider, apply everywhere or by app</li>
+   <li>Browser tab titles in the mixer</li>
+   <li>Volume step, density &amp; accent themes</li>
+   <li>Drop-in replacement for omarchy.audio</li>
+  </ul>
+ </div>
+</div>
+<div class="footer">
+ <div class="rule"></div>
+ <div class="row"><span>Audio &mdash; routed, mixed, enhanced.</span><span style="color:#5fd6a0">gdeyoung.audiofx v0.2.0</span><span>gdeyoung/omarchy-audiofx</span></div>
+</div>
+<div class="right">
+ <div class="cap cap1">THE PANEL &mdash; EFFECTS ON</div>
+ <div class="card c1"><img src="audiofx-panel.png"></div>
+ <div class="cap cap2">ROUTE &amp; PIN ANY APP</div>
+ <div class="card c2"><img src="audiofx-route.png"></div>
+</div>
+</body></html>
