@@ -484,6 +484,19 @@ Panel {
     return volume
   }
 
+  // Mute writes must land on every link between the apps and the speakers.
+  // With the FX engine active, volumeSink resolves to the *physical* sink the
+  // chain feeds — but a stale node list can drop that resolution back to the
+  // virtual one, in which case an unmute flips the virtual sink and a muted
+  // physical sink keeps the machine silent with no visible state to fix.
+  // Writing both ends makes mute/unmute unambiguous; volume still moves only
+  // the resolved sink so DSP levels stay untouched.
+  function applyOutputMute(muted) {
+    if (volumeSink && volumeSink.audio) volumeSink.audio.muted = muted
+    var resolved = volumeSink ? String(volumeSink.name) : ""
+    if (sink && sink.audio && String(sink.name) !== resolved) sink.audio.muted = muted
+  }
+
   function showVolumeOsd(volume) {
     if (!bar || !bar.shell) return
     bar.shell.summon("omarchy.osd", JSON.stringify({
@@ -498,7 +511,7 @@ Panel {
   }
 
   function toggleOutputMute() {
-    if (volumeSink && volumeSink.audio) volumeSink.audio.muted = !volumeSink.audio.muted
+    applyOutputMute(!outputMuted)
   }
 
   function toggleInputMute() {
@@ -510,8 +523,8 @@ Panel {
   // muting a single channel from the row below flipping the master switch.
   function toggleAllMuted() {
     var mute = anyAudible
-    if (hasOutput) volumeSink.audio.muted = mute
-    if (hasInput) source.audio.muted = mute
+    if (hasOutput) applyOutputMute(mute)
+    if (hasInput && source && source.audio) source.audio.muted = mute
   }
 
   function setDefaultSink(node) {
