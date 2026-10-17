@@ -1771,8 +1771,9 @@ Panel {
                 width: parent.width
                 spacing: root.sp(4)
 
-                Row {
+                Item {
                   width: parent.width
+                  implicitHeight: Math.max(fxStrengthLabel.implicitHeight, fxStrengthValue.implicitHeight)
 
                   Text {
                     id: fxStrengthLabel
@@ -1789,6 +1790,7 @@ Panel {
                   }
 
                   Text {
+                    id: fxStrengthValue
                     textFormat: Text.PlainText
                     text: root.fxDimensionValue() + "%"
                     color: root.bar.foreground
