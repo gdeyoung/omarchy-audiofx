@@ -1199,8 +1199,10 @@ Panel {
     // size.
     padding: Style.space(8)
     readonly property int savedPadding: Math.max(0, Style.spacing.popupPadding - panel.padding)
-    contentWidth: panel.fittedContentWidth(root.sp(380) - 2 * savedPadding)
-    contentHeight: panel.fittedContentHeight(panelColumn.implicitHeight, root.sp(760))
+    contentWidth: panel.fittedContentWidth(root.sp(430) - 2 * savedPadding)
+    // No explicit height cap: fit the whole content up to the screen's
+    // available height, and only scroll when the screen itself is too small.
+    contentHeight: panel.fittedContentHeight(panelColumn.implicitHeight)
 
     PanelKeyCatcher {
       id: keyCatcher
