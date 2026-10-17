@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "gdeyoung.audiofx",
+  "name": "Audio FX",
+  "version": "0.1.0",
+  "author": "gdeyoung",
+  "description": "Volume, output picker, per-app mixer, plus 3D / bass / night audio effects on PipeWire",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Audio FX",
+    "description": "Volume, output picker, per-app mixer, plus 3D / bass / night audio effects on PipeWire",
+    "category": "Audio",
+    "allowMultiple": false,
+    "schema": [
+      {
+        "key": "showFxSection",
+        "type": "bool",
+        "label": "Show effects section",
+        "defaultValue": true
+      }
+    ]
+  }
+}
