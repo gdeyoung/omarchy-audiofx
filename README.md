@@ -17,8 +17,12 @@ pickers, the per-app mixer, keyboard navigation — and it adds:
 - **Sound effects.** An EFFECTS section: **Off**, **3D** (binaural surround
   for headphones), **Bass**, **Night** and **Movie** presets with a strength
   slider, applied system-wide on a PipeWire filter-chain — no config-file
-  editing. Effects can cover **Everything**, or **All except…** chosen apps
-  (games go direct); each app row gets an **FX ON / FX OFF** chip.
+  editing. A **LOUD** chip (0 to +6 dB) rides alongside the presets: a 120 Hz
+  high-pass plus a lookahead limiter that claws back real loudness these
+  speakers otherwise lose to their own protection DSP (validated by ear
+  2026-10-18: clearly audible at +6 dB, clean). Effects can cover
+  **Everything**, or **All except…** chosen apps (games go direct); each app
+  row gets an **FX ON / FX OFF** chip.
 - **Disable devices.** Hover an output or input and click the power icon (or
   press `d`). Disabled devices collect in a **Disabled** section at the bottom,
   folded into one line ("4 devices turned off"). Click **Show** to list them,
@@ -79,8 +83,10 @@ The engine (`audiofx.py`, `irgen.py` — MIT, python-numpy) is a sibling
 component: [gdeyoung/audiofx-engine](https://github.com/gdeyoung/audiofx-engine).
 
 ```bash
-git clone https://github.com/gdeyoung/audiofx-engine ~/audiofx-engine
-mkdir -p ~/.local/bin && ln -s ~/audiofx-engine/audiofx.py ~/.local/bin/audiofx
+git clone https://github.com/gdeyoung/audiofx-engine ~/omarchy-audiofx
+mkdir -p ~/.local/bin
+cp ~/omarchy-audiofx/audiofx.py ~/omarchy-audiofx/irgen.py ~/.local/bin/
+sudo pacman -S --needed swh-plugins
 audiofx apply '{"spatial":60,"bass":50,"night":0}'   # first apply enables its units
 ```
 
@@ -164,9 +170,12 @@ script the panel calls:
   only when certain.
 - **Effects** — `fx-status`, `fx-apply`, `fx-rules` — delegate to the engine
   executable and are unit-tested against a stub. Effects compose as
-  `[ 3D convolver bank ] -> [ bass IR ] -> [ night IR ]`: bass and night
-  regenerate their impulse response per strength, 3D is a wet/dry blend.
-  Apply is transactional: config render → unit restart → sink-present check,
+  `[ 3D convolver bank ] -> [ bass IR ] -> [ night IR ] -> [ Loud stage ]`:
+  bass and night regenerate their impulse response per strength, 3D is a
+  wet/dry blend, and Loud appends a fixed 120 Hz high-pass IR pair into one
+  stereo `fastLookaheadLimiter` (LADSPA, `swh-plugins`) whose input gain
+  carries 0…+6 dB with a −1 dBFS ceiling. Apply is transactional: config
+  render → unit restart → sink-present check,
   with rollback to the previous default sink on failure.
 - **Mute writes go to both ends of the chain.** With effects active the
   panel resolves the physical device the chain feeds (the same definition

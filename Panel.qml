@@ -609,7 +609,7 @@ Panel {
   // State mirrors ~/.local/share/audiofx/state.json, read through the
   // engine's status command; the fx-* subcommands of bin/audiofx delegate
   // to the engine, so this file never references its install path.
-  property var fxStatus: ({active: false, preset: {spatial: 0, bass: 0, night: 0}, target: "", mode: "system", excluded: []})
+  property var fxStatus: ({active: false, preset: {spatial: 0, bass: 0, night: 0, loud: 0}, target: "", mode: "system", excluded: []})
   property bool fxApplying: false
   property string fxLastDimension: ""
   property bool fxRulesBusy: false
@@ -634,10 +634,22 @@ Panel {
   function fxApplyPreset(p) {
     if (fxApplying) return
     fxApplying = true
-    fxApplyProc.presetJson = (p.spatial || p.bass || p.night)
-      ? JSON.stringify({spatial: p.spatial, bass: p.bass, night: p.night})
+    fxApplyProc.presetJson = (p.spatial || p.bass || p.night || p.loud)
+      ? JSON.stringify({spatial: p.spatial || 0, bass: p.bass || 0, night: p.night || 0, loud: p.loud || 0})
       : "off"
     fxApplyProc.running = true
+  }
+
+  // Loud is orthogonal to the preset pills: 0-100 maps to 0..+6 dB at the
+  // limiter's input gain (engine contract). Toggle default is MAX — at +6 dB
+  // the difference is clearly audible on these speakers (validated 2026-10-18).
+  readonly property int fxLoudDefault: 100
+
+  function fxToggleLoud() {
+    if (fxApplying || !fxStatus.active) return
+    var cur = (fxStatus.preset && fxStatus.preset.loud) || 0
+    fxLastDimension = "loud"
+    fxSetAmount("loud", cur > 0 ? 0 : root.fxLoudDefault)
   }
 
   function fxSetMode(mode) {
@@ -685,7 +697,8 @@ Panel {
     var next = {
       spatial: fxStatus.preset.spatial || 0,
       bass: fxStatus.preset.bass || 0,
-      night: fxStatus.preset.night || 0
+      night: fxStatus.preset.night || 0,
+      loud: fxStatus.preset.loud || 0
     }
     next[key] = amount
     fxApplyPreset(next)
@@ -708,6 +721,7 @@ Panel {
     if ((p.spatial || 0) > 0) return "spatial"
     if ((p.bass || 0) > 0) return "bass"
     if ((p.night || 0) > 0) return "night"
+    if ((p.loud || 0) > 0) return "loud"
     return ""
   }
 
@@ -716,7 +730,16 @@ Panel {
     if (d === "spatial") return "3D STRENGTH"
     if (d === "bass") return "BASS"
     if (d === "night") return "NIGHT MODE"
+    if (d === "loud") return "LOUDNESS"
     return ""
+  }
+
+  // Loud displays in dB (0..+6) rather than percent.
+  function fxDimensionValueText() {
+    var v = fxDimensionValue()
+    if (fxDimension() === "loud")
+      return "+" + (v * 6 / 100).toFixed(1) + " dB"
+    return v + "%"
   }
 
   function fxDimensionValue() {
@@ -1825,6 +1848,42 @@ Panel {
                   font.family: root.bar.fontFamily
                   font.pixelSize: root.fontCaption
                 }
+
+                // LOUD: orthogonal to the pills — 120 Hz high-pass + limiter
+                // gain in the engine. Chip toggles MAX/off; the strength
+                // slider below fine-tunes it once selected.
+                CursorSurface {
+                  id: loudChip
+                  visible: root.fxStatus.active && !root.fxApplying
+                  anchors.right: fxBadge.visible ? fxBadge.left : parent.right
+                  anchors.rightMargin: root.sp(8)
+                  anchors.verticalCenter: parent.verticalCenter
+                  bordered: true
+                  foreground: root.bar.foreground
+                  implicitWidth: loudChipText.implicitWidth + root.sp(14)
+                  implicitHeight: loudChipText.implicitHeight + root.sp(8)
+
+                  MouseArea {
+                    anchors.fill: parent
+                    onClicked: root.fxToggleLoud()
+                  }
+
+                  Text {
+                    id: loudChipText
+                    anchors.centerIn: parent
+                    textFormat: Text.PlainText
+                    text: {
+                      var l = (root.fxStatus.preset && root.fxStatus.preset.loud) || 0
+                      return l > 0 ? ("LOUD +" + (l * 6 / 100).toFixed(1) + " dB") : "LOUD"
+                    }
+                    color: ((root.fxStatus.preset && root.fxStatus.preset.loud) || 0) > 0
+                           ? root.accent : root.bar.foreground
+                    font.family: root.bar.fontFamily
+                    font.pixelSize: root.fontCaption
+                    font.bold: true
+                    font.letterSpacing: 1.2
+                  }
+                }
               }
 
               Segmented {
@@ -1869,7 +1928,7 @@ Panel {
                   Text {
                     id: fxStrengthValue
                     textFormat: Text.PlainText
-                    text: root.fxDimensionValue() + "%"
+                    text: root.fxDimensionValueText()
                     color: root.bar.foreground
                     opacity: 0.6
                     font.family: root.bar.fontFamily
@@ -3061,9 +3120,10 @@ Panel {
 
       Repeater {
         model: [
-          "git clone https://github.com/gdeyoung/audiofx-engine ~/audiofx-engine",
-          "ln -s ~/audiofx-engine/audiofx.py ~/.local/bin/audiofx",
-          "audiofx apply '{\"spatial\":60,\"bass\":50,\"night\":0}'"
+          "git clone https://github.com/gdeyoung/audiofx-engine ~/omarchy-audiofx",
+          "cp ~/omarchy-audiofx/audiofx.py ~/omarchy-audiofx/irgen.py ~/.local/bin/",
+          "sudo pacman -S --needed swh-plugins",
+          "audiofx apply '{\"spatial\":60,\"bass\":50,\"night\":0,\"loud\":100}'",
         ]
         delegate: Row {
           width: parent.width
