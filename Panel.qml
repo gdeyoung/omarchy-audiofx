@@ -21,6 +21,12 @@ Panel {
   readonly property var mediaService: bar?.shell?.firstPartyServiceFor("omarchy.media")
   readonly property var activeMediaPlayer: mediaService ? mediaService.activePlayer : null
 
+  // `bar` (the live bar config the stock Panel base injects) is null until
+  // the bar attaches and again during style refreshes; the panel's color and
+  // font bindings go through these guards and fall back to the theme then.
+  readonly property color barForeground: bar ? bar.foreground : Color.foreground
+  readonly property string barFontFamily: bar ? bar.fontFamily : Style.font.family
+
   readonly property var candidateSinks: {
     var list = []
     for (var i = 0; i < nodes.length; i++) {
@@ -1339,8 +1345,8 @@ Panel {
               id: heroIcon
               textFormat: Text.PlainText
               text: root.outputIcon()
-              color: root.bar.foreground
-              font.family: root.bar.fontFamily
+              color: root.barForeground
+              font.family: root.barFontFamily
               font.pixelSize: root.fontDisplay
               opacity: root.outputMuted ? 0.5 : 1.0
               anchors.left: parent.left
@@ -1363,7 +1369,7 @@ Panel {
               PanelToolTip {
                 visible: powerSwitch.containsMouse
                 text: root.toggleHint
-                fontFamily: root.bar.fontFamily
+                fontFamily: root.barFontFamily
               }
             }
 
@@ -1375,8 +1381,8 @@ Panel {
               anchors.verticalCenter: parent.verticalCenter
               textFormat: Text.PlainText
               text: root.helpOpen ? "󰅖" : "󰋖"
-              color: helpMouse.containsMouse || root.helpOpen ? root.accent : root.bar.foreground
-              font.family: root.bar.fontFamily
+              color: helpMouse.containsMouse || root.helpOpen ? root.accent : root.barForeground
+              font.family: root.barFontFamily
               font.pixelSize: Math.round(root.fontTitle * 1.45)
               opacity: helpMouse.containsMouse || root.helpOpen ? 1.0 : 0.85
 
@@ -1396,7 +1402,7 @@ Panel {
               PanelToolTip {
                 visible: helpMouse.containsMouse
                 text: root.helpOpen ? "Close help" : "Troubleshooting"
-                fontFamily: root.bar.fontFamily
+                fontFamily: root.barFontFamily
               }
             }
 
@@ -1410,8 +1416,8 @@ Panel {
               text: root.settingsOpen ? "󰅖" : "󰒓"
               // Larger than the header text and accent on hover, so it reads
               // as a control rather than decoration.
-              color: gearMouse.containsMouse || root.settingsOpen ? root.accent : root.bar.foreground
-              font.family: root.bar.fontFamily
+              color: gearMouse.containsMouse || root.settingsOpen ? root.accent : root.barForeground
+              font.family: root.barFontFamily
               font.pixelSize: Math.round(root.fontTitle * 1.45)
               opacity: gearMouse.containsMouse || root.settingsOpen ? 1.0 : 0.85
 
@@ -1431,7 +1437,7 @@ Panel {
               PanelToolTip {
                 visible: gearMouse.containsMouse
                 text: root.settingsOpen ? "Close settings" : "Panel settings"
-                fontFamily: root.bar.fontFamily
+                fontFamily: root.barFontFamily
               }
             }
 
@@ -1457,8 +1463,8 @@ Panel {
                   anchors.rightMargin: root.sp(8)
                   anchors.verticalCenter: parent.verticalCenter
                   text: "audiofx"
-                  color: root.bar.foreground
-                  font.family: root.bar.fontFamily
+                  color: root.barForeground
+                  font.family: root.barFontFamily
                   font.pixelSize: root.fontTitle
                   font.bold: true
                   elide: Text.ElideRight
@@ -1487,7 +1493,7 @@ Panel {
                       textFormat: Text.PlainText
                       text: "v" + root.version
                       color: root.accent
-                      font.family: root.bar.fontFamily
+                      font.family: root.barFontFamily
                       font.pixelSize: root.fontCaption
                       font.bold: true
                     }
@@ -1499,9 +1505,9 @@ Panel {
                     anchors.verticalCenter: parent.verticalCenter
                     textFormat: Text.PlainText
                     text: "\uf09b"
-                    color: repoMouse.containsMouse ? root.accent : root.bar.foreground
+                    color: repoMouse.containsMouse ? root.accent : root.barForeground
                     opacity: repoMouse.containsMouse ? 1.0 : 0.6
-                    font.family: root.bar.fontFamily
+                    font.family: root.barFontFamily
                     font.pixelSize: root.fontBody
 
                     MouseArea {
@@ -1516,7 +1522,7 @@ Panel {
                     PanelToolTip {
                       visible: repoMouse.containsMouse
                       text: "Open on GitHub"
-                      fontFamily: root.bar.fontFamily
+                      fontFamily: root.barFontFamily
                     }
                   }
                 }
@@ -1532,7 +1538,7 @@ Panel {
 
             // ---- Output devices ----
             PanelSeparator {
-              foreground: root.bar.foreground
+              foreground: root.barForeground
             }
 
             Column {
@@ -1547,8 +1553,8 @@ Panel {
                   id: outputHeader
                   icon: "\uf028"
                   text: "OUTPUT"
-                  foreground: root.bar.foreground
-                  fontFamily: root.bar.fontFamily
+                  foreground: root.barForeground
+                  fontFamily: root.barFontFamily
                   anchors.left: parent.left
                   anchors.verticalCenter: parent.verticalCenter
                 }
@@ -1564,8 +1570,8 @@ Panel {
                   id: outputPercent
                   textFormat: Text.PlainText
                   text: Math.round((outputSlider.dragging ? outputSlider.liveValue : root.outputVolume) * 100) + "%"
-                  color: Qt.darker(root.bar.foreground, 1.4)
-                  font.family: root.bar.fontFamily
+                  color: Qt.darker(root.barForeground, 1.4)
+                  font.family: root.barFontFamily
                   font.pixelSize: root.fontCaption
                   font.bold: true
                   anchors.right: outputMuteSwitch.visible ? outputMuteSwitch.left : parent.right
@@ -1586,7 +1592,7 @@ Panel {
                   PanelToolTip {
                     visible: outputMuteSwitch.containsMouse
                     text: (root.outputMuted ? "Unmute " : "Mute ") + "output"
-                    fontFamily: root.bar.fontFamily
+                    fontFamily: root.barFontFamily
                   }
                 }
               }
@@ -1597,7 +1603,7 @@ Panel {
                 height: outputSlider.implicitHeight + (Style.spacing.controlGap * root.densityScale)
                 hasCursor: root.cursorActive && root.focusSection === "output" && root.selectedIndex === -1
                 onHasCursorChanged: if (hasCursor) root.ensureCursorVisible(outputSliderRow)
-                foreground: root.bar.foreground
+                foreground: root.barForeground
                 outline: true
 
                 PanelSlider {
@@ -1644,7 +1650,7 @@ Panel {
             // ---- Input ----
             PanelSeparator {
               visible: root.displayAudioSources.length > 0 || !!root.source
-              foreground: root.bar.foreground
+              foreground: root.barForeground
             }
 
             Column {
@@ -1660,8 +1666,8 @@ Panel {
                   id: microphoneHeader
                   icon: "\uf130"
                   text: "INPUT"
-                  foreground: root.bar.foreground
-                  fontFamily: root.bar.fontFamily
+                  foreground: root.barForeground
+                  fontFamily: root.barFontFamily
                   anchors.left: parent.left
                   anchors.verticalCenter: parent.verticalCenter
                 }
@@ -1670,8 +1676,8 @@ Panel {
                   id: microphonePercent
                   textFormat: Text.PlainText
                   text: Math.round((inputSlider.dragging ? inputSlider.liveValue : root.inputVolume) * 100) + "%"
-                  color: Qt.darker(root.bar.foreground, 1.4)
-                  font.family: root.bar.fontFamily
+                  color: Qt.darker(root.barForeground, 1.4)
+                  font.family: root.barFontFamily
                   font.pixelSize: root.fontCaption
                   font.bold: true
                   anchors.right: inputMuteSwitch.visible ? inputMuteSwitch.left : parent.right
@@ -1692,7 +1698,7 @@ Panel {
                   PanelToolTip {
                     visible: inputMuteSwitch.containsMouse
                     text: (root.inputMuted ? "Unmute " : "Mute ") + "input"
-                    fontFamily: root.bar.fontFamily
+                    fontFamily: root.barFontFamily
                   }
                 }
               }
@@ -1704,7 +1710,7 @@ Panel {
                 height: inputControls.implicitHeight + (Style.spacing.controlGap * root.densityScale)
                 hasCursor: root.cursorActive && root.focusSection === "input" && root.selectedIndex === -1
                 onHasCursorChanged: if (hasCursor) root.ensureCursorVisible(inputSliderRow)
-                foreground: root.bar.foreground
+                foreground: root.barForeground
                 outline: true
 
                 Column {
@@ -1734,7 +1740,7 @@ Panel {
                   Rectangle {
                     width: parent.width
                     height: Math.max(root.sp(5), (Style.spacing.xs * root.densityScale))
-                    color: Util.alpha(root.bar.foreground, 0.18)
+                    color: Util.alpha(root.barForeground, 0.18)
                     opacity: root.inputMuted ? 0.35 : 1.0
 
                     Rectangle {
@@ -1771,7 +1777,7 @@ Panel {
             // ---- Per-app streams ----
             PanelSeparator {
               visible: root.displayAudioStreams.length > 0
-              foreground: root.bar.foreground
+              foreground: root.barForeground
             }
 
             Column {
@@ -1782,8 +1788,8 @@ Panel {
               SectionLabel {
                 icon: "\uf001"
                 text: "SOURCES"
-                foreground: root.bar.foreground
-                fontFamily: root.bar.fontFamily
+                foreground: root.barForeground
+                fontFamily: root.barFontFamily
               }
 
               Repeater {
@@ -1802,7 +1808,7 @@ Panel {
             // ---- Audio FX: effect pills + strength (gdeyoung.audiofx) ----
             PanelSeparator {
               visible: root.showFxSection
-              foreground: root.bar.foreground
+              foreground: root.barForeground
             }
 
             Column {
@@ -1818,8 +1824,8 @@ Panel {
                   id: fxSectionLabel
                   icon: "\uf0d0"
                   text: "EFFECTS"
-                  foreground: root.bar.foreground
-                  fontFamily: root.bar.fontFamily
+                  foreground: root.barForeground
+                  fontFamily: root.barFontFamily
                 }
 
                 Text {
@@ -1831,7 +1837,7 @@ Panel {
                   textFormat: Text.PlainText
                   text: "ON"
                   color: root.accent
-                  font.family: root.bar.fontFamily
+                  font.family: root.barFontFamily
                   font.pixelSize: root.fontCaption
                   font.bold: true
                   font.letterSpacing: 1.2
@@ -1844,8 +1850,8 @@ Panel {
                   anchors.verticalCenter: parent.verticalCenter
                   textFormat: Text.PlainText
                   text: "…"
-                  color: root.bar.foreground
-                  font.family: root.bar.fontFamily
+                  color: root.barForeground
+                  font.family: root.barFontFamily
                   font.pixelSize: root.fontCaption
                 }
 
@@ -1859,7 +1865,7 @@ Panel {
                   anchors.rightMargin: root.sp(8)
                   anchors.verticalCenter: parent.verticalCenter
                   bordered: true
-                  foreground: root.bar.foreground
+                  foreground: root.barForeground
                   implicitWidth: loudChipText.implicitWidth + root.sp(14)
                   implicitHeight: loudChipText.implicitHeight + root.sp(8)
 
@@ -1877,8 +1883,8 @@ Panel {
                       return l > 0 ? ("LOUD +" + (l * 6 / 100).toFixed(1) + " dB") : "LOUD"
                     }
                     color: ((root.fxStatus.preset && root.fxStatus.preset.loud) || 0) > 0
-                           ? root.accent : root.bar.foreground
-                    font.family: root.bar.fontFamily
+                           ? root.accent : root.barForeground
+                    font.family: root.barFontFamily
                     font.pixelSize: root.fontCaption
                     font.bold: true
                     font.letterSpacing: 1.2
@@ -1915,9 +1921,9 @@ Panel {
                     id: fxStrengthLabel
                     textFormat: Text.PlainText
                     text: root.fxDimensionLabel()
-                    color: root.bar.foreground
+                    color: root.barForeground
                     opacity: 0.6
-                    font.family: root.bar.fontFamily
+                    font.family: root.barFontFamily
                     font.pixelSize: root.fontCaption
                     font.bold: true
                     font.letterSpacing: 1.2
@@ -1929,9 +1935,9 @@ Panel {
                     id: fxStrengthValue
                     textFormat: Text.PlainText
                     text: root.fxDimensionValueText()
-                    color: root.bar.foreground
+                    color: root.barForeground
                     opacity: 0.6
-                    font.family: root.bar.fontFamily
+                    font.family: root.barFontFamily
                     font.pixelSize: root.fontCaption
                     font.bold: true
                     anchors.right: parent.right
@@ -1964,8 +1970,8 @@ Panel {
                 SectionLabel {
                   icon: "\uf074"
                   text: "APPLY TO"
-                  foreground: root.bar.foreground
-                  fontFamily: root.bar.fontFamily
+                  foreground: root.barForeground
+                  fontFamily: root.barFontFamily
                 }
 
                 Segmented {
@@ -1990,9 +1996,9 @@ Panel {
                     var ex = root.fxStatus.excluded || []
                     return ex.length ? "Bypassed: " + ex.join(", ") : "Nothing bypassed — tap a stream's FX chip below"
                   }
-                  color: root.bar.foreground
+                  color: root.barForeground
                   opacity: 0.6
-                  font.family: root.bar.fontFamily
+                  font.family: root.barFontFamily
                   font.pixelSize: root.fontCaption
                 }
               }
@@ -2001,7 +2007,7 @@ Panel {
             // ---- Disabled devices ----
             PanelSeparator {
               visible: root.showDisabled && root.disabledDevices.length > 0
-              foreground: root.bar.foreground
+              foreground: root.barForeground
             }
 
             Column {
@@ -2012,8 +2018,8 @@ Panel {
               SectionLabel {
                 icon: "\uf011"
                 text: "DISABLED"
-                foreground: root.bar.foreground
-                fontFamily: root.bar.fontFamily
+                foreground: root.barForeground
+                fontFamily: root.barFontFamily
               }
 
               // Collapsed by default: the devices matter only when turning one
@@ -2063,7 +2069,7 @@ Panel {
             // ---- Scroll step ----
             PanelSeparator {
               visible: root.showStepFooter
-              foreground: root.bar.foreground
+              foreground: root.barForeground
             }
 
             // Same boxes as the settings view; the hint says what the step drives.
@@ -2089,9 +2095,9 @@ Panel {
                   anchors.verticalCenter: parent.verticalCenter
                   textFormat: Text.PlainText
                   text: "scroll · keys"
-                  color: root.bar.foreground
+                  color: root.barForeground
                   opacity: 0.4
-                  font.family: root.bar.fontFamily
+                  font.family: root.barFontFamily
                   font.pixelSize: root.fontCaption
                   font.letterSpacing: 0.8
                 }
@@ -2147,7 +2153,7 @@ Panel {
     hasCursor: root.cursorActive && root.focusSection === "output" && root.selectedIndex === rowIndex
     onHasCursorChanged: if (hasCursor) root.ensureCursorVisible(sinkRow)
     current: isActive
-    foreground: root.bar.foreground
+    foreground: root.barForeground
     fill: root.hoverFill
     currentFill: root.selectedFill
     implicitHeight: sinkInner.implicitHeight + (Style.spacing.xl * root.densityScale)
@@ -2164,8 +2170,8 @@ Panel {
       Text {
         textFormat: Text.PlainText
         text: root.sinkGlyph(sinkRow.node)
-        color: root.bar.foreground
-        font.family: root.bar.fontFamily
+        color: root.barForeground
+        font.family: root.barFontFamily
         font.pixelSize: root.fontTitle
         width: root.sp(22)
         horizontalAlignment: Text.AlignHCenter
@@ -2175,8 +2181,8 @@ Panel {
       Text {
         textFormat: Text.PlainText
         text: root.nodeLabel(sinkRow.node)
-        color: root.bar.foreground
-        font.family: root.bar.fontFamily
+        color: root.barForeground
+        font.family: root.barFontFamily
         font.pixelSize: root.fontBody
         font.bold: sinkRow.isActive
         elide: Text.ElideRight
@@ -2190,7 +2196,7 @@ Panel {
         textFormat: Text.PlainText
         text: "󰂯"
         color: root.accent
-        font.family: root.bar.fontFamily
+        font.family: root.barFontFamily
         font.pixelSize: root.fontBody
         anchors.verticalCenter: parent.verticalCenter
       }
@@ -2240,7 +2246,7 @@ Panel {
     hasCursor: root.cursorActive && root.focusSection === "input" && root.selectedIndex === rowIndex
     onHasCursorChanged: if (hasCursor) root.ensureCursorVisible(sourceRow)
     current: isActive
-    foreground: root.bar.foreground
+    foreground: root.barForeground
     fill: root.hoverFill
     currentFill: root.selectedFill
     implicitHeight: sourceInner.implicitHeight + (Style.spacing.xl * root.densityScale)
@@ -2257,8 +2263,8 @@ Panel {
       Text {
         textFormat: Text.PlainText
         text: root.sourceGlyph(sourceRow.node)
-        color: root.bar.foreground
-        font.family: root.bar.fontFamily
+        color: root.barForeground
+        font.family: root.barFontFamily
         font.pixelSize: root.fontTitle
         width: root.sp(22)
         horizontalAlignment: Text.AlignHCenter
@@ -2268,8 +2274,8 @@ Panel {
       Text {
         textFormat: Text.PlainText
         text: root.nodeLabel(sourceRow.node)
-        color: root.bar.foreground
-        font.family: root.bar.fontFamily
+        color: root.barForeground
+        font.family: root.barFontFamily
         font.pixelSize: root.fontBody
         font.bold: sourceRow.isActive
         elide: Text.ElideRight
@@ -2283,7 +2289,7 @@ Panel {
         textFormat: Text.PlainText
         text: "󰂯"
         color: root.accent
-        font.family: root.bar.fontFamily
+        font.family: root.barFontFamily
         font.pixelSize: root.fontBody
         anchors.verticalCenter: parent.verticalCenter
       }
@@ -2343,7 +2349,7 @@ Panel {
     hasCursor: root.cursorActive && root.focusSection === "streams" && root.selectedIndex === rowIndex
     onHasCursorChanged: if (hasCursor) root.ensureCursorVisible(streamRow)
     current: isActive
-    foreground: root.bar.foreground
+    foreground: root.barForeground
     fill: root.hoverFill
     currentFill: root.selectedFill
     implicitHeight: streamColumn.implicitHeight + (Style.spacing.xl * root.densityScale)
@@ -2368,8 +2374,8 @@ Panel {
           id: streamMuteIcon
           textFormat: Text.PlainText
           text: streamRow.streamMuted ? "󰝟" : "󰕾"
-          color: root.bar.foreground
-          font.family: root.bar.fontFamily
+          color: root.barForeground
+          font.family: root.barFontFamily
           font.pixelSize: root.fontTitle
           width: root.sp(22)
           horizontalAlignment: Text.AlignHCenter
@@ -2389,8 +2395,8 @@ Panel {
         Text {
           textFormat: Text.PlainText
           text: root.streamDisplayName(streamRow.node)
-          color: root.bar.foreground
-          font.family: root.bar.fontFamily
+          color: root.barForeground
+          font.family: root.barFontFamily
           font.pixelSize: root.fontBody
           font.bold: streamRow.isActive
           elide: Text.ElideRight
@@ -2409,8 +2415,8 @@ Panel {
           id: streamPct
           textFormat: Text.PlainText
           text: Math.round(streamRow.streamVolume * 100) + "%"
-          color: Qt.darker(root.bar.foreground, 1.5)
-          font.family: root.bar.fontFamily
+          color: Qt.darker(root.barForeground, 1.5)
+          font.family: root.barFontFamily
           font.pixelSize: root.fontCaption
           font.bold: true
           width: root.sp(36)
@@ -2459,7 +2465,7 @@ Panel {
           PanelToolTip {
             visible: streamMuteSwitch.containsMouse
             text: (streamRow.streamMuted ? "Unmute " : "Mute ") + (root.streamApp(streamRow.node) || root.streamLabel(streamRow.node))
-            fontFamily: root.bar.fontFamily
+            fontFamily: root.barFontFamily
           }
         }
 
@@ -2481,8 +2487,8 @@ Panel {
             Text {
               textFormat: Text.PlainText
               text: "Where should " + (root.streamApp(streamRow.node) || root.streamLabel(streamRow.node)) + " play?"
-              color: root.bar.foreground
-              font.family: root.bar.fontFamily
+              color: root.barForeground
+              font.family: root.barFontFamily
               font.pixelSize: root.fontCaption
               font.bold: true
               elide: Text.ElideRight
@@ -2502,8 +2508,8 @@ Panel {
                   + (modelData.sink
                     ? root.nodeLabel(modelData.sink)
                     : "Default output (" + root.nodeLabel(root.sink) + ")")
-                color: chosen ? root.accent : (choiceMouse.containsMouse ? root.bar.foreground : Qt.darker(root.bar.foreground, 1.25))
-                font.family: root.bar.fontFamily
+                color: chosen ? root.accent : (choiceMouse.containsMouse ? root.barForeground : Qt.darker(root.barForeground, 1.25))
+                font.family: root.barFontFamily
                 font.pixelSize: root.fontCaption
                 font.bold: chosen
                 elide: Text.ElideRight
@@ -2531,8 +2537,8 @@ Panel {
               textFormat: Text.PlainText
               text: (checked ? "󰄲  " : "󰄱  ") + "Always play " + (root.streamApp(streamRow.node) || root.streamLabel(streamRow.node))
                 + " on " + root.sinkLabelFor(targetName)
-              color: checked ? root.accent : (pinMouse.containsMouse ? root.bar.foreground : Qt.darker(root.bar.foreground, 1.25))
-              font.family: root.bar.fontFamily
+              color: checked ? root.accent : (pinMouse.containsMouse ? root.barForeground : Qt.darker(root.barForeground, 1.25))
+              font.family: root.barFontFamily
               font.pixelSize: root.fontCaption
               font.bold: checked
               elide: Text.ElideRight
@@ -2576,17 +2582,17 @@ Panel {
         width: fxBypassLabel.implicitWidth + root.sp(12)
         height: fxBypassLabel.implicitHeight + root.sp(6)
         radius: height / 2
-        color: bypassed ? Util.alpha(root.bar.foreground, 0.08) : Util.alpha(root.bar.foreground, 0.22)
+        color: bypassed ? Util.alpha(root.barForeground, 0.08) : Util.alpha(root.barForeground, 0.22)
         border.width: bypassed ? 0 : 1
-        border.color: root.bar.foreground
+        border.color: root.barForeground
 
         Text {
           id: fxBypassLabel
           anchors.centerIn: parent
           textFormat: Text.PlainText
           text: fxBypassChip.bypassed ? "FX OFF" : "FX ON"
-          color: root.bar.foreground
-          font.family: root.bar.fontFamily
+          color: root.barForeground
+          font.family: root.barFontFamily
           font.pixelSize: root.fontCaption
           font.bold: true
         }
@@ -2622,8 +2628,8 @@ Panel {
 
     textFormat: Text.PlainText
     text: "󰐥"
-    color: root.bar.foreground
-    font.family: root.bar.fontFamily
+    color: root.barForeground
+    font.family: root.barFontFamily
     font.pixelSize: root.fontBody
     width: root.sp(22)
     horizontalAlignment: Text.AlignHCenter
@@ -2641,7 +2647,7 @@ Panel {
     PanelToolTip {
       visible: disableMouse.containsMouse && disableButton.shown
       text: "Disable device (d)"
-      fontFamily: root.bar.fontFamily
+      fontFamily: root.barFontFamily
     }
   }
 
@@ -2654,7 +2660,7 @@ Panel {
 
     hasCursor: root.cursorActive && root.focusSection === "disabled" && root.selectedIndex === rowIndex
     onHasCursorChanged: if (hasCursor) root.ensureCursorVisible(disabledRow)
-    foreground: root.bar.foreground
+    foreground: root.barForeground
     fill: root.hoverFill
     currentFill: root.selectedFill
     implicitHeight: disabledInner.implicitHeight + (Style.spacing.xl * root.densityScale)
@@ -2672,8 +2678,8 @@ Panel {
       Text {
         textFormat: Text.PlainText
         text: disabledRow.entry.kind === "source" ? "󰍭" : "󰓄"
-        color: root.bar.foreground
-        font.family: root.bar.fontFamily
+        color: root.barForeground
+        font.family: root.barFontFamily
         font.pixelSize: root.fontTitle
         width: root.sp(22)
         horizontalAlignment: Text.AlignHCenter
@@ -2683,8 +2689,8 @@ Panel {
       Text {
         textFormat: Text.PlainText
         text: disabledRow.entry.label
-        color: root.bar.foreground
-        font.family: root.bar.fontFamily
+        color: root.barForeground
+        font.family: root.barFontFamily
         font.pixelSize: root.fontBody
         elide: Text.ElideRight
         width: parent.width - root.sp(22) - root.sp(8) - enableHint.width - root.sp(8)
@@ -2697,7 +2703,7 @@ Panel {
         textFormat: Text.PlainText
         text: "󰂯"
         color: root.accent
-        font.family: root.bar.fontFamily
+        font.family: root.barFontFamily
         font.pixelSize: root.fontBody
         anchors.verticalCenter: parent.verticalCenter
       }
@@ -2706,8 +2712,8 @@ Panel {
         id: enableHint
         textFormat: Text.PlainText
         text: "ENABLE"
-        color: root.bar.foreground
-        font.family: root.bar.fontFamily
+        color: root.barForeground
+        font.family: root.barFontFamily
         font.pixelSize: root.fontCaption
         font.bold: true
         opacity: disabledRow.hasCursor ? 1.0 : 0
@@ -2744,7 +2750,7 @@ Panel {
     signal headerHovered()
 
     bordered: true
-    foreground: root.bar.foreground
+    foreground: root.barForeground
     fill: root.hoverFill
     implicitHeight: fieldColumn.implicitHeight + 2 * root.sp(6)
 
@@ -2769,8 +2775,8 @@ Panel {
           anchors.verticalCenter: parent.verticalCenter
           textFormat: Text.PlainText
           text: field.glyph
-          color: root.bar.foreground
-          font.family: root.bar.fontFamily
+          color: root.barForeground
+          font.family: root.barFontFamily
           font.pixelSize: root.fontCaption
           width: text ? root.sp(18) : 0
         }
@@ -2783,8 +2789,8 @@ Panel {
           anchors.verticalCenter: parent.verticalCenter
           textFormat: Text.PlainText
           text: field.summary
-          color: root.bar.foreground
-          font.family: root.bar.fontFamily
+          color: root.barForeground
+          font.family: root.barFontFamily
           font.pixelSize: root.fontCaption
           elide: Text.ElideRight
         }
@@ -2795,8 +2801,8 @@ Panel {
           anchors.verticalCenter: parent.verticalCenter
           textFormat: Text.PlainText
           text: (field.actionText ? field.actionText + " " : "") + (field.expanded ? "󰅃" : "󰅀")
-          color: root.bar.foreground
-          font.family: root.bar.fontFamily
+          color: root.barForeground
+          font.family: root.barFontFamily
           font.pixelSize: root.fontCaption
           font.bold: true
         }
@@ -2816,7 +2822,7 @@ Panel {
         visible: field.expanded
         width: parent.width
         height: 1
-        color: Util.alpha(root.bar.foreground, 0.15)
+        color: Util.alpha(root.barForeground, 0.15)
       }
 
       Column {
@@ -2873,8 +2879,8 @@ Panel {
         readonly property bool chosen: chips.selected === modelData.value
         textFormat: Text.PlainText
         text: modelData.label
-        color: chosen ? root.accent : root.bar.foreground
-        font.family: root.bar.fontFamily
+        color: chosen ? root.accent : root.barForeground
+        font.family: root.barFontFamily
         font.pixelSize: root.fontCaption
         font.bold: chosen
         font.underline: chosen
@@ -2909,8 +2915,8 @@ Panel {
       anchors.verticalCenter: parent.verticalCenter
       textFormat: Text.PlainText
       text: settingRow.label
-      color: root.bar.foreground
-      font.family: root.bar.fontFamily
+      color: root.barForeground
+      font.family: root.barFontFamily
       font.pixelSize: Math.round(root.fontBody * 0.92)
       elide: Text.ElideRight
     }
@@ -2938,7 +2944,7 @@ Panel {
     }
 
     PanelSeparator {
-      foreground: root.bar.foreground
+      foreground: root.barForeground
     }
 
     Item {
@@ -2949,8 +2955,8 @@ Panel {
         id: helpBack
         textFormat: Text.PlainText
         text: "󰁍 Back"
-        color: root.bar.foreground
-        font.family: root.bar.fontFamily
+        color: root.barForeground
+        font.family: root.barFontFamily
         font.pixelSize: root.fontCaption
         font.bold: true
         opacity: helpBackMouse.containsMouse ? 1.0 : 0.75
@@ -2969,8 +2975,8 @@ Panel {
     SectionLabel {
       icon: "\uf05a"
       text: "TROUBLESHOOTING"
-      foreground: root.bar.foreground
-      fontFamily: root.bar.fontFamily
+      foreground: root.barForeground
+      fontFamily: root.barFontFamily
     }
 
     Text {
@@ -2978,9 +2984,9 @@ Panel {
       wrapMode: Text.WordWrap
       textFormat: Text.PlainText
       text: "No sound or no microphone? Run the diagnostics — it checks the whole audio tree and names the exact fault."
-      color: root.bar.foreground
+      color: root.barForeground
       opacity: 0.8
-      font.family: root.bar.fontFamily
+      font.family: root.barFontFamily
       font.pixelSize: root.fontCaption
     }
 
@@ -2996,7 +3002,7 @@ Panel {
         textFormat: Text.PlainText
         text: root.doctorRunning ? "Running…" : (root.doctor ? "Run again" : "Run diagnostics")
         color: root.accent
-        font.family: root.bar.fontFamily
+        font.family: root.barFontFamily
         font.pixelSize: root.fontBody
         font.bold: true
       }
@@ -3043,9 +3049,9 @@ Panel {
           Text {
             textFormat: Text.PlainText
             text: modelData.label
-            color: root.bar.foreground
+            color: root.barForeground
             opacity: 0.65
-            font.family: root.bar.fontFamily
+            font.family: root.barFontFamily
             font.pixelSize: root.fontCaption
             font.bold: true
             width: root.sp(84)
@@ -3053,9 +3059,9 @@ Panel {
           Text {
             textFormat: Text.PlainText
             text: modelData.value
-            color: modelData.warn ? root.accent : root.bar.foreground
+            color: modelData.warn ? root.accent : root.barForeground
             font.bold: modelData.warn
-            font.family: root.bar.fontFamily
+            font.family: root.barFontFamily
             font.pixelSize: root.fontCaption
             elide: Text.ElideRight
             width: parent.width - root.sp(92)
@@ -3076,7 +3082,7 @@ Panel {
             text: "⚠ " + modelData
             color: root.accent
             font.bold: true
-            font.family: root.bar.fontFamily
+            font.family: root.barFontFamily
             font.pixelSize: root.fontCaption
           }
           Text {
@@ -3084,9 +3090,9 @@ Panel {
             wrapMode: Text.WordWrap
             textFormat: Text.PlainText
             text: Model.doctorFaultHint(modelData)
-            color: root.bar.foreground
+            color: root.barForeground
             opacity: 0.7
-            font.family: root.bar.fontFamily
+            font.family: root.barFontFamily
             font.pixelSize: root.fontCaption
           }
         }
@@ -3098,9 +3104,9 @@ Panel {
         wrapMode: Text.WordWrap
         textFormat: Text.PlainText
         text: "Everything checks out — no faults found."
-        color: root.bar.foreground
+        color: root.barForeground
         opacity: 0.65
-        font.family: root.bar.fontFamily
+        font.family: root.barFontFamily
         font.pixelSize: root.fontCaption
       }
     }
@@ -3114,8 +3120,8 @@ Panel {
       SectionLabel {
         icon: "\uf019"
         text: "INSTALL THE EFFECTS ENGINE"
-        foreground: root.bar.foreground
-        fontFamily: root.bar.fontFamily
+        foreground: root.barForeground
+        fontFamily: root.barFontFamily
       }
 
       Repeater {
@@ -3142,7 +3148,7 @@ Panel {
               anchors.margins: root.sp(6)
               textFormat: Text.PlainText
               text: modelData
-              color: root.bar.foreground
+              color: root.barForeground
               font.family: "monospace"
               font.pixelSize: root.fontCaption
               elide: Text.ElideMiddle
@@ -3155,9 +3161,9 @@ Panel {
             anchors.verticalCenter: parent.verticalCenter
             textFormat: Text.PlainText
             text: copyMouse.copied ? "✓ Copied" : "Copy"
-            color: copyMouse.containsMouse || copyMouse.copied ? root.accent : root.bar.foreground
+            color: copyMouse.containsMouse || copyMouse.copied ? root.accent : root.barForeground
             opacity: copyMouse.containsMouse || copyMouse.copied ? 1.0 : 0.7
-            font.family: root.bar.fontFamily
+            font.family: root.barFontFamily
             font.pixelSize: root.fontCaption
             font.bold: true
 
@@ -3188,9 +3194,9 @@ Panel {
         wrapMode: Text.WordWrap
         textFormat: Text.PlainText
         text: "Then reload this panel. Effects are system-wide; this panel drives them."
-        color: root.bar.foreground
+        color: root.barForeground
         opacity: 0.65
-        font.family: root.bar.fontFamily
+        font.family: root.barFontFamily
         font.pixelSize: root.fontCaption
       }
     }
@@ -3201,9 +3207,9 @@ Panel {
       width: parent.width
       textFormat: Text.PlainText
       text: "Open the troubleshooting guide 󰁔"
-      color: docsMouse.containsMouse ? root.accent : root.bar.foreground
+      color: docsMouse.containsMouse ? root.accent : root.barForeground
       opacity: docsMouse.containsMouse ? 1.0 : 0.75
-      font.family: root.bar.fontFamily
+      font.family: root.barFontFamily
       font.pixelSize: root.fontCaption
       font.bold: true
 
@@ -3222,7 +3228,7 @@ Panel {
     spacing: root.sp(12)
 
     PanelSeparator {
-      foreground: root.bar.foreground
+      foreground: root.barForeground
     }
 
     Item {
@@ -3233,8 +3239,8 @@ Panel {
         id: settingsBack
         textFormat: Text.PlainText
         text: "󰁍 Back"
-        color: root.bar.foreground
-        font.family: root.bar.fontFamily
+        color: root.barForeground
+        font.family: root.barFontFamily
         font.pixelSize: root.fontCaption
         font.bold: true
         opacity: backMouse.containsMouse ? 1.0 : 0.75
@@ -3253,8 +3259,8 @@ Panel {
     SectionLabel {
       icon: "\uf1fc"
       text: "DENSITY"
-      foreground: root.bar.foreground
-      fontFamily: root.bar.fontFamily
+      foreground: root.barForeground
+      fontFamily: root.barFontFamily
     }
 
     Segmented {
@@ -3272,8 +3278,8 @@ Panel {
     SectionLabel {
       icon: "\uf031"
       text: "FONT SIZE"
-      foreground: root.bar.foreground
-      fontFamily: root.bar.fontFamily
+      foreground: root.barForeground
+      fontFamily: root.barFontFamily
     }
 
     Segmented {
@@ -3291,21 +3297,21 @@ Panel {
     SectionLabel {
       icon: "\uf1fb"
       text: "ACCENT"
-      foreground: root.bar.foreground
-      fontFamily: root.bar.fontFamily
+      foreground: root.barForeground
+      fontFamily: root.barFontFamily
     }
 
     AccentPicker { width: parent.width }
 
     PanelSeparator {
-      foreground: root.bar.foreground
+      foreground: root.barForeground
     }
 
     SectionLabel {
       icon: "\uf06e"
       text: "SHOW"
-      foreground: root.bar.foreground
-      fontFamily: root.bar.fontFamily
+      foreground: root.barForeground
+      fontFamily: root.barFontFamily
     }
 
     // The switches sit closer together than the view's sections.
@@ -3364,14 +3370,14 @@ Panel {
     }
 
     PanelSeparator {
-      foreground: root.bar.foreground
+      foreground: root.barForeground
     }
 
     SectionLabel {
       icon: "\uf1de"
       text: "VOLUME STEP"
-      foreground: root.bar.foreground
-      fontFamily: root.bar.fontFamily
+      foreground: root.barForeground
+      fontFamily: root.barFontFamily
     }
 
     Segmented {
@@ -3402,9 +3408,9 @@ Panel {
       radius: height / 2
       color: sw.checked
         ? Util.alpha(root.accent, sw.focused ? 0.55 : 0.3)
-        : Util.alpha(root.bar.foreground, sw.focused ? 0.25 : 0.1)
+        : Util.alpha(root.barForeground, sw.focused ? 0.25 : 0.1)
       border.width: 1
-      border.color: sw.checked ? root.accent : Util.alpha(root.bar.foreground, sw.focused ? 0.6 : 0.25)
+      border.color: sw.checked ? root.accent : Util.alpha(root.barForeground, sw.focused ? 0.6 : 0.25)
       Behavior on color { ColorAnimation { duration: 120 } }
 
       Rectangle {
@@ -3413,7 +3419,7 @@ Panel {
         radius: width / 2
         anchors.verticalCenter: parent.verticalCenter
         x: sw.checked ? parent.width - width - (parent.height - height) / 2 : (parent.height - height) / 2
-        color: sw.checked ? root.accent : Qt.darker(root.bar.foreground, 1.4)
+        color: sw.checked ? root.accent : Qt.darker(root.barForeground, 1.4)
         Behavior on x { NumberAnimation { duration: 120 } }
         Behavior on color { ColorAnimation { duration: 120 } }
       }
@@ -3437,8 +3443,8 @@ Panel {
     id: section
     property string icon: ""
     property string text: ""
-    property color foreground: root.bar.foreground
-    property string fontFamily: root.bar.fontFamily
+    property color foreground: root.barForeground
+    property string fontFamily: root.barFontFamily
 
     spacing: root.sp(7)
 
@@ -3487,17 +3493,17 @@ Panel {
         radius: root.sp(7)
         color: chosen
           ? Util.alpha(root.accent, 0.12)
-          : Util.alpha(root.bar.foreground, choiceMouse.containsMouse ? 0.09 : 0.05)
+          : Util.alpha(root.barForeground, choiceMouse.containsMouse ? 0.09 : 0.05)
         border.width: chosen ? 2 : 1
-        border.color: chosen ? root.accent : Util.alpha(root.bar.foreground, 0.12)
+        border.color: chosen ? root.accent : Util.alpha(root.barForeground, 0.12)
 
         Text {
           id: choiceText
           anchors.centerIn: parent
           textFormat: Text.PlainText
           text: choice.modelData.label
-          color: choice.chosen ? root.accent : root.bar.foreground
-          font.family: root.bar.fontFamily
+          color: choice.chosen ? root.accent : root.barForeground
+          font.family: root.barFontFamily
           font.pixelSize: root.fontCaption
           font.bold: choice.chosen
         }
@@ -3530,9 +3536,9 @@ Panel {
         width: isTheme ? themeLabel.implicitWidth + root.sp(30) : root.sp(23)
         height: root.sp(23)
         radius: height / 2
-        color: isTheme ? Util.alpha(root.bar.foreground, 0.06) : accentSource.colorOf(modelData)
+        color: isTheme ? Util.alpha(root.barForeground, 0.06) : accentSource.colorOf(modelData)
         border.width: chosen ? 2 : 1
-        border.color: chosen ? root.bar.foreground : Util.alpha(root.bar.foreground, isTheme ? 0.25 : 0.15)
+        border.color: chosen ? root.barForeground : Util.alpha(root.barForeground, isTheme ? 0.25 : 0.15)
 
         // The theme entry is a pill with a dot in the theme's own accent.
         Rectangle {
@@ -3554,8 +3560,8 @@ Panel {
           anchors.verticalCenter: parent.verticalCenter
           textFormat: Text.PlainText
           text: "Theme"
-          color: root.bar.foreground
-          font.family: root.bar.fontFamily
+          color: root.barForeground
+          font.family: root.barFontFamily
           font.pixelSize: root.fontCaption
           font.bold: swatch.chosen
         }
@@ -3571,7 +3577,7 @@ Panel {
         PanelToolTip {
           visible: swatchMouse.containsMouse
           text: swatch.isTheme ? "Theme accent" : swatch.modelData.charAt(0).toUpperCase() + swatch.modelData.slice(1)
-          fontFamily: root.bar.fontFamily
+          fontFamily: root.barFontFamily
         }
       }
     }
